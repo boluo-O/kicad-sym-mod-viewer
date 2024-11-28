@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+            * {
+                padding: 0px;
+                margin: 0px;
+            }
+
+            /* Apply styles to the container div */
+            .flex-container {
+                display: flex;
+            }
+
+            .col-flex-container {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .canvas-container {
+                text-align: center;
+                width: 323px;
+                height: 300px;
+            }
+
+            #symWrap,
+            #sizeWrap,
+            #threeModule {
+                display: none;
+            }
+
+            kicad-footprint-viewer,
+            kicad-symbol-viewer,
+            vrml-viewer,
+            online-3d-viewer {
+                width: 300px;
+                height: 300px;
+                margin-right: 20px;
+                margin-bottom: 1rem;
+                margin-top: 1rem;
+            }
+
+            .flex-container.verticalCls {
+                display: block;
+                margin-top: 20px;
+            }
+
+            .verticalCls .canvas-container {
+                display: none;
+                height: 160px;
+                background: #f2f3f5;
+                border-radius: 3px;
+                padding: 14px;
+                box-sizing: border-box;
+                margin-top: 20px;
+            }
+
+            .verticalCls .canvas-container:first-child {
+                margin-top: 0;
+            }
+
+            .verticalCls kicad-footprint-viewer,
+            .verticalCls kicad-symbol-viewer,
+            .verticalCls vrml-viewer,
+            .verticalCls online-3d-viewer {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+            }
+        </style>
+        <title>ECAD Viewer</title>
+    </head>
+
+    <body>
+        <!-- Container div for the horizontal layout -->
+        <div class="flex-container" id="myElement">
+            <!-- Individual canvas containers within the container -->
+            <div class="canvas-container">
+                <!-- For multiple parts , there will be a combobox -->
+                <kicad-symbol-viewer
+                    controls="basic"
+                    id="symWrap"
+                    class="itemCls"
+                >
+                    <ecad-source
+                        src="./public/MOD-nRF8001.kicad_sym"
+                    ></ecad-source>
+                </kicad-symbol-viewer>
+            </div>
+            <!-- <div class="canvas-container">
+                <kicad-footprint-viewer
+                    controls="basic"
+                    id="sizeWrap"
+                    class="itemCls"
+                >
+                </kicad-footprint-viewer>
+            </div>
+            <div class="canvas-container" id="threeModule">
+                <online-3d-viewer class="itemCls">
+                    <ecad-source
+                        src="ul_AD5541ABRMZ/RM_10_ADI.step"
+                    ></ecad-source>
+                </online-3d-viewer>
+            </div> -->
+        </div>
+    </body>
+
+    <script type="module" src="./public/symbol-footprint.js"></script>
+    <script>
+        var url = window.location.search
+        var params = new URLSearchParams(url)
+        console.log("paramsparams", params)
+        var elWidth = JSON.parse(params.get("width"))
+        var elHeight = JSON.parse(params.get("height"))
+        var cls = params.get("cls")
+        cls && document.getElementById("myElement").classList.add(cls)
+        const element = document.getElementsByClassName("itemCls")
+        for (var i = 0; i < element.length; i++) {
+            elWidth && (element[i].style.width = elWidth + "px")
+            elHeight && (element[i].style.height = elHeight + "px")
+        }
+        params = JSON.parse(params.get("url")) || []
+        for (var i = 0; i < params.length; i++) {
+            if (params[i].type == "symbol") {
+                document.getElementsByClassName(
+                    "canvas-container"
+                )[0].style.display = "block"
+                document.getElementById("symWrap").style.display = "block"
+                // document
+                //     .getElementById("symWrap")
+                //     .querySelectorAll("ecad-source")[0]
+                //     .setAttribute("src", params[i].fileUrl)
+            } else if (params[i].type == "footprint") {
+                document.getElementsByClassName(
+                    "canvas-container"
+                )[1].style.display = "block"
+                var newChild = document.createElement("ecad-source")
+                newChild.setAttribute("src", params[i].fileUrl)
+                document.getElementById("sizeWrap").appendChild(newChild)
+                document.getElementById("sizeWrap").style.display = "block"
+            } else if (params[i].type == "3d") {
+                document.getElementsByClassName(
+                    "canvas-container"
+                )[2].style.display = "block"
+                document.getElementById("threeModule").style.display = "block"
+                document
+                    .getElementById("threeModule")
+                    .querySelectorAll("ecad-source")[0]
+                    .setAttribute("src", params[i].fileUrl)
+            }
+        }
+        document.addEventListener("contextmenu", function (event) {
+            event.preventDefault()
+        })
+    </script>
+</html>

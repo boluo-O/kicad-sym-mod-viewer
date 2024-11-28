@@ -1,14 +1,190 @@
+import { create } from "zustand"
+const useStore = create((set) => ({
+    count: 0,
+    increment: () => set((state) => ({ count: state.count + 1 })),
+}))
 const defaultCanvas = document.createElement("canvas") as HTMLCanvasElement
 const defaultCanvasContext = defaultCanvas.getContext(
     "2d"
 ) as CanvasRenderingContext2D
 
-class KicadSymbol {
-    name: string
-    pins: { x: number; y: number; name: string; number: string }[]
+// 绘制圆
+// this.ctx.beginPath()
+// this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2) // 绘制圆
+// this.ctx.lineWidth = strokeWidth // 设置边框宽度
+// this.ctx.strokeStyle = "black" // 设置边框颜色
+// this.ctx.stroke() // 绘制边框
+// this.ctx.fillStyle = "transparent" // 设置填充颜色为透明
+// this.ctx.fill() // 填充圆（无填充效果）
+interface Circle {
+    center: { x: number; y: number }
+    fill: { type: "none" }
+    radius: number
+    stroke: { width: number; type: "default" }
+}
 
-    draw(ctx: CanvasRenderingContext2D) {
+interface Polyline {
+    pts: { xyList: { x: number; y: number }[] }
+    fill: { type: "none" | "solid" | "outline" }
+    stroke: { width: number; type: "default" }
+}
+
+const drawCircle = (
+    ctx: CanvasRenderingContext2D,
+    { center, fill, radius, stroke }: Circle
+) => {
+    ctx.beginPath()
+    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2) // 使用 radius 变量
+    ctx.lineWidth = stroke.width // 使用 strokeWidth 变量
+    // ctx.strokeStyle = stroke.type // 设置边框颜色
+    ctx.strokeStyle = "black" // 设置边框颜色
+    ctx.stroke() // 绘制边框
+    // ctx.fillStyle = fill.type // 设置填充颜色
+    ctx.fillStyle = "transparent" // 设置填充颜色
+    ctx.fill() // 填充圆
+}
+
+const drawPolyline = (
+    ctx: CanvasRenderingContext2D,
+    { pts, fill, stroke }: Polyline
+) => {
+    ctx.beginPath()
+    ctx.moveTo(pts.xyList[0].x, pts.xyList[0].y) // 移动到第一个点
+
+    for (let i = 1; i < pts.xyList.length; i++) {
+        ctx.lineTo(pts.xyList[i].x, pts.xyList[i].y) // 连接到下一个点
+    }
+
+    ctx.lineWidth = stroke.width
+    ctx.strokeStyle = "black" // 线条颜色
+    ctx.stroke() // 绘制线条
+
+    if (fill.type === "outline") {
+        ctx.closePath()
+        ctx.fillStyle = "none" // 填充类型为无
+        ctx.fill() // 填充
+    }
+}
+
+class SymbolPin {
+    shape: "line"
+    name: { text: string; effects: { font: { size: number } } }
+    number: { text: string; effects: { font: { size: number } } }
+    at: { x: number; y: number; rotate: number }
+    length: number
+    isMouseHovering: boolean = false
+    constructor({ at, length, name, shape, number }) {
+        this.at = at
+        this.shape = shape
+        this.length = length
+        this.name = name
+        this.number = number
+        this.shape = shape
+    }
+
+    public bindEvent(ctx, kCanvas: KicadCanvas) {
+        // 添加鼠标移动检测引脚
+        kCanvas.canvas.addEventListener("mousemove", (event) => {
+            const preIsMouseHovering = this.isMouseHovering
+            this.isMouseHovering = false
+
+            const rect = kCanvas.canvas.getBoundingClientRect()
+            const mouseX =
+                (event.clientX - rect.left - kCanvas.offsetX) / kCanvas.scale
+            const mouseY =
+                (event.clientY - rect.top - kCanvas.offsetY) / kCanvas.scale
+            const distance = Math.sqrt(
+                Math.pow(mouseX - this.at.x, 2) +
+                    Math.pow(mouseY - this.at.y, 2)
+            )
+            if (distance < 1) {
+                this.isMouseHovering = true
+            }
+            if (preIsMouseHovering !== this.isMouseHovering) {
+                kCanvas.draw()
+                if (this.isMouseHovering) {
+                    console.log(
+                        `引脚信息: ${this.name.text} (${this.number.text})`
+                    )
+                }
+            }
+        })
+    }
+
+    draw(ctx) {
+        ctx.save()
+        if (this.isMouseHovering) {
+            ctx.strokeStyle = "red"
+            ctx.fillStyle = "red"
+            // 显示引脚信息
+        } else {
+            ctx.strokeStyle = "black"
+            ctx.fillStyle = "black"
+        }
+        // pin 点
+        ctx.beginPath()
+        ctx.arc(this.at.x, this.at.y, 0.254, 0, Math.PI * 2)
+        ctx.fill()
+        // pin 线
+        ctx.translate(this.at.x, this.at.y)
+        ctx.rotate(((this.at.rotate + 90) * Math.PI) / 180) // 旋转角度
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineWidth = 0.254 // 设置线宽
+        ctx.lineTo(0, -this.length) // 绘制引脚
+        ctx.stroke()
+
+        ctx.rotate(0)
+        ctx.font = `${this.name.effects.font.size}px Arial` // 设置字体大小
+        ctx.fillText(
+            this.name.text,
+            0,
+            -this.length + this.name.effects.font.size
+        ) // 名称
+        ctx.fillText(
+            this.number.text,
+            0,
+            -this.length + this.name.effects.font.size * 2
+        ) // 编号
+        ctx.restore()
+    }
+}
+
+export class KicadSymbol {
+    name: string
+    symbols: KicadSymbol[]
+    circles: Circle[]
+    polylines: Polyline[]
+    // rectangles: Rectangle[]
+
+    pins: SymbolPin[]
+    elements: any[] = []
+
+    constructor(symbol, kCanvas: KicadCanvas) {
+        this.name = symbol.name
+        this.symbols = symbol.symbols || []
+        this.circles = symbol.circles || []
+        this.polylines = symbol.polylines || []
+        this.pins = symbol.pins || []
+        for (const pin of this.pins) {
+            const _pin = new SymbolPin(pin)
+            kCanvas.addElement(_pin)
+        }
+        for (const symbol of this.symbols) {
+            const _symbol = new KicadSymbol(symbol, kCanvas)
+            // _symbol.draw(ctx)
+            kCanvas.addElement(_symbol)
+        }
+    }
+
+    public draw(ctx: CanvasRenderingContext2D, kCanvas: KicadCanvas) {
         // 绘制符号
+        for (const circle of this.circles) {
+            drawCircle(ctx, circle)
+        }
+        for (const polyline of this.polylines) {
+            drawPolyline(ctx, polyline)
+        }
     }
 }
 
@@ -24,8 +200,8 @@ export class KicadCanvas {
     startY = 0
     canvas = defaultCanvas
     ctx = defaultCanvasContext
-    hoveredPin: { x: number; y: number; name: string; number: string } | null =
-        null
+
+    elements: any[] = []
 
     constructor({ width = 500, height = 300 }) {
         this.initCanvas({ width, height })
@@ -36,7 +212,7 @@ export class KicadCanvas {
         const canvas = document.createElement("canvas")
         document.body.appendChild(canvas)
         // 画布设置
-        const ratio = window.devicePixelRatio || 1
+        const ratio = window.devicePixelRatio * 1.5 || 1
         canvas.width = width * ratio // 实际渲染像素
         canvas.height = height * ratio // 实际渲染像素
         canvas.style.width = `${width}px` // 控制显示大小
@@ -76,40 +252,6 @@ export class KicadCanvas {
                 (event.clientX - rect.left - this.offsetX) / this.scale
             const mouseY =
                 (event.clientY - rect.top - this.offsetY) / this.scale
-
-            // 打印鼠标在 Canvas 坐标系中的位置
-            // console.log(
-            //     `鼠标位置: x=${mouseX.toFixed(2)}, y=${mouseY.toFixed(2)}`
-            // )
-        })
-        // 添加鼠标移动检测引脚
-        this.canvas.addEventListener("mousemove", (event) => {
-            const rect = this.canvas.getBoundingClientRect()
-            const mouseX =
-                (event.clientX - rect.left - this.offsetX) / this.scale
-            const mouseY =
-                (event.clientY - rect.top - this.offsetY) / this.scale
-
-            // 检查是否悬停在引脚上
-            const pins = [
-                { x: 2.54, y: 5.08, name: "D", number: "1" },
-                { x: 2.54, y: -5.08, name: "S", number: "2" },
-                { x: -5.08, y: 0, name: "G", number: "3" },
-            ]
-
-            this.hoveredPin = null
-            for (const pin of pins) {
-                const distance = Math.sqrt(
-                    Math.pow(mouseX - pin.x, 2) + Math.pow(mouseY - pin.y, 2)
-                )
-
-                // console.log("distance", distance)
-                if (distance < 1) {
-                    this.hoveredPin = pin
-                    break
-                }
-            }
-            this.draw()
         })
 
         // 处理鼠标抬起事件以结束平移
@@ -147,147 +289,28 @@ export class KicadCanvas {
         })
     }
 
+    addElement(element: any) {
+        this.elements.push(element)
+
+        if (element.bindEvent) {
+            element.bindEvent(this.ctx, this)
+        }
+    }
+    addElements(elements: any[]) {
+        for (const e of elements) {
+            this.addElement(e)
+        }
+    }
+
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height) // 清空画布
         this.ctx.save() // 保存当前状态
         this.ctx.translate(this.offsetX, this.offsetY) // 应用平移
         this.ctx.scale(this.scale, this.scale) // 应用缩放
-        // console.log("this.scale", this.scale)
-        // console.log("this.offsetX", this.offsetX)
-        // console.log("this.offsetY", this.offsetY)
-        // this.ctx.fillStyle = "blue" // 设置填充颜色
-        // this.ctx.font = "30px Arial" // 设置字体和大小
-        // this.ctx.textBaseline = "middle" // 设置文本基线
-        // this.ctx.textAlign = "center" // 设置文本对齐方式
-        // this.ctx.fillText("11111111111111111", 0, 0) // 绘制文本
 
-        const centerX = 1.27 * 1 // 将坐标放大以适应 canvas
-        const centerY = 0 // y 坐标为 200
-        const radius = 2.8194 * 1 // 将半径放大以适应 canvas
-        const strokeWidth = 0.254 * 1 // 将边框宽度放大以适应 canvas
-
-        // 绘制圆
-        this.ctx.beginPath()
-        this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2) // 绘制圆
-        this.ctx.lineWidth = strokeWidth // 设置边框宽度
-        this.ctx.strokeStyle = "black" // 设置边框颜色
-        this.ctx.stroke() // 绘制边框
-        this.ctx.fillStyle = "transparent" // 设置填充颜色为透明
-        this.ctx.fill() // 填充圆（无填充效果）
-
-        // 多边形
-        const drawPolyline = (
-            ctx: CanvasRenderingContext2D,
-            points: number[][],
-            strokeWidth: number,
-            fillType: string
-        ) => {
-            ctx.beginPath()
-            ctx.moveTo(points[0][0], points[0][1]) // 移动到第一个点
-
-            for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i][0], points[i][1]) // 连接到下一个点
-            }
-
-            ctx.lineWidth = strokeWidth
-            ctx.strokeStyle = "black" // 线条颜色
-            ctx.stroke() // 绘制线条
-
-            if (fillType === "outline") {
-                ctx.closePath()
-                ctx.fillStyle = "none" // 填充类型为无
-                ctx.fill() // 填充
-            }
+        for (const e of this.elements) {
+            e.draw(this.ctx, this)
         }
-
-        // 定义 polyline 的点
-        const polylines = [
-            [
-                [0.254, 0],
-                [-2.54, 0],
-            ],
-            [
-                [0.254, 1.905],
-                [0.254, -1.905],
-            ],
-            [
-                [2.54, -2.54],
-                [2.54, -1.397],
-                [0.254, -1.397],
-            ],
-            [
-                [2.54, 2.54],
-                [2.54, 1.397],
-                [0.254, 1.397],
-            ],
-            [
-                [0, 0],
-                [-1.016, 0.381],
-                [-1.016, -0.381],
-                [0, 0],
-            ],
-        ]
-
-        // 绘制所有的 polylines
-        polylines.forEach((points, index) => {
-            const strokeWidth = index === 4 ? 0 : 0.254 // 最后一个 polyline 的宽度为 0
-            const fillType = index === 4 ? "outline" : "none" // 最后一个 polyline 为 outline
-            drawPolyline(this.ctx, points, strokeWidth, fillType)
-        })
-        // 设置字体和线宽
-        const fontSize = 1.27 // 字体大小，保持原始值
-        const lineWidth = 0.254 // 线宽，保持原始值
-        // 绘制引脚的函数
-        const drawPin = (
-            ctx: CanvasRenderingContext2D,
-            x: number,
-            y: number,
-            angle: number,
-            length: number,
-            name: string,
-            number: string
-        ) => {
-            ctx.save()
-
-            if (
-                this.hoveredPin &&
-                this.hoveredPin.x === x &&
-                this.hoveredPin.y === y
-            ) {
-                ctx.strokeStyle = "red"
-                ctx.fillStyle = "red"
-                // 显示引脚信息
-                console.log(`引脚信息: ${name} (${number})`)
-            } else {
-                ctx.strokeStyle = "black"
-                ctx.fillStyle = "black"
-            }
-            ctx.beginPath()
-            ctx.arc(x, y, 0.254, 0, Math.PI * 2)
-            ctx.fill()
-
-            ctx.translate(x, y)
-            ctx.rotate(((angle + 90) * Math.PI) / 180) // 旋转角度
-            ctx.beginPath()
-            ctx.moveTo(0, 0)
-            // ctx.strokeStyle = "black"
-            ctx.lineTo(0, -length) // 绘制引脚
-            ctx.lineWidth = lineWidth // 设置线宽
-            ctx.stroke()
-
-            // ctx.arc(0, 0, 0.254, 0, Math.PI * 2) // Circle at midpoint with radius 0.254 units
-            ctx.fill()
-            // 绘制引脚名称和编号
-            // ctx.fillStyle = "black"
-            ctx.font = `${fontSize}px Arial` // 设置字体大小
-            ctx.fillText(name, 0, -length + fontSize) // 名称
-            ctx.fillText(number, 0, -length + fontSize * 2) // 编号
-            ctx.restore()
-        }
-        drawPin(this.ctx, 2.54, 5.08, 270, 2.54, "D", "1") // 引脚 D
-        drawPin(this.ctx, 2.54, -5.08, 90, 2.54, "S", "2") // 引脚 S
-        drawPin(this.ctx, -5.08, 0, 0, 2.54, "G", "3") // 引脚 G
-
         this.ctx.restore() // 恢复到之前的状态
     }
 }

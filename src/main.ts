@@ -1,12 +1,6 @@
 import { listify, tokenize } from "./tokenizer.ts"
-import { KicadCanvas } from "./canvas.ts"
+import { KicadCanvas, KicadSymbol } from "./canvas.ts"
 import { createDraft } from "immer"
-const drawSymbol = () => {}
-
-class KicadSymbolElement {
-    in_bom: string
-    constructor(parameters) {}
-}
 
 const parseRowMap = {
     version: (o, listProps, parseTokenList) => {
@@ -85,6 +79,60 @@ const parseRowMap = {
         o.fill = {}
         parseTokenList(o.fill, listProps.slice(1))
     },
+    pin: (o, listProps, parseTokenList) => {
+        const pin = {}
+        parseTokenList(pin, listProps.slice(1))
+        if (o.pins) {
+            o.pins.push(pin)
+        } else {
+            o.pins = [pin]
+        }
+    },
+    line: (o, listProps, parseTokenList) => {
+        o.line = {}
+        parseTokenList(o.line, listProps.slice(1))
+    },
+    at: (o, listProps, parseTokenList) => {
+        o.at = { x: listProps[1], y: listProps[2], rotate: listProps[3] }
+    },
+    length: (o, listProps, parseTokenList) => {
+        o.length = listProps[1]
+    },
+    name: (o, listProps, parseTokenList) => {
+        o.name = { text: listProps[1] }
+        parseTokenList(o.name, listProps.slice(2))
+    },
+    number: (o, listProps, parseTokenList) => {
+        o.number = { text: listProps[1] }
+        parseTokenList(o.number, listProps.slice(2))
+    },
+    effects: (o, listProps, parseTokenList) => {
+        o.effects = {}
+        parseTokenList(o.effects, listProps.slice(1))
+    },
+    font: (o, listProps, parseTokenList) => {
+        o.font = {}
+        parseTokenList(o.font, listProps.slice(1))
+    },
+    size: (o, listProps, parseTokenList) => {
+        o.size = listProps[1]
+    },
+    rectangle: (o, listProps, parseTokenList) => {
+        const rectangle = {}
+        console.log("o", o)
+        parseTokenList(rectangle, listProps.slice(1))
+        if (o.rectangles) {
+            o.rectangles.push(rectangle)
+        } else {
+            o.rectangles = [rectangle]
+        }
+    },
+    start: (o, listProps, parseTokenList) => {
+        o.start = { x: listProps[1], y: listProps[2] }
+    },
+    end: (o, listProps, parseTokenList) => {
+        o.end = { x: listProps[1], y: listProps[2] }
+    },
 }
 
 const parseTokenList = (o, tokenList) => {
@@ -106,23 +154,36 @@ const __main = () => {
     fetch("./MMBFJ112.kicad_sym")
         .then((res) => res.text())
         .then((data) => {
+            console.time("测试耗时1")
             // console.log("data", data)
             const tokenList = listify(data)[0] as any[]
             console.log("tokenList", tokenList)
             const o = {}
             parseTokenList(o, tokenList)
             console.log("o", o)
+            const kc = new KicadCanvas({})
+
+            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
+            kc.draw()
+            console.timeEnd("测试耗时1")
             // func(tokenList)
         })
-    // fetch("./MOD-nRF8001.kicad_sym")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         // console.log("data", data)
-    //         const tokenList = listify(data)[0] as any[]
-    //         console.log("tokenList", tokenList)
-    //         func(tokenList)
-    //     })
-    const kc = new KicadCanvas({})
+    fetch("./MOD-nRF8001.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            // console.log("data", data)
+            console.time("测试耗时2")
+
+            const tokenList = listify(data)[0] as any[]
+            console.log("tokenList", tokenList)
+            const o = {}
+            parseTokenList(o, tokenList)
+            console.log("o", o)
+            const kc = new KicadCanvas({})
+            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
+            kc.draw()
+            console.timeEnd("测试耗时2")
+        })
 }
 
 __main()
