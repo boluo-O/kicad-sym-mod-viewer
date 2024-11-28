@@ -1,21 +1,13 @@
-import { create } from "zustand"
-const useStore = create((set) => ({
-    count: 0,
-    increment: () => set((state) => ({ count: state.count + 1 })),
-}))
+// import { create } from "zustand"
+// const useStore = create((set) => ({
+//     count: 0,
+//     increment: () => set((state) => ({ count: state.count + 1 })),
+// }))
 const defaultCanvas = document.createElement("canvas") as HTMLCanvasElement
 const defaultCanvasContext = defaultCanvas.getContext(
     "2d"
 ) as CanvasRenderingContext2D
 
-// 绘制圆
-// this.ctx.beginPath()
-// this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2) // 绘制圆
-// this.ctx.lineWidth = strokeWidth // 设置边框宽度
-// this.ctx.strokeStyle = "black" // 设置边框颜色
-// this.ctx.stroke() // 绘制边框
-// this.ctx.fillStyle = "transparent" // 设置填充颜色为透明
-// this.ctx.fill() // 填充圆（无填充效果）
 interface Circle {
     center: { x: number; y: number }
     fill: { type: "none" }
@@ -26,6 +18,13 @@ interface Circle {
 interface Polyline {
     pts: { xyList: { x: number; y: number }[] }
     fill: { type: "none" | "solid" | "outline" }
+    stroke: { width: number; type: "default" }
+}
+
+interface Rectangle {
+    fill: { type: "none" }
+    start: { x: number; y: number }
+    end: { x: number; y: number }
     stroke: { width: number; type: "default" }
 }
 
@@ -64,6 +63,110 @@ const drawPolyline = (
         ctx.fillStyle = "none" // 填充类型为无
         ctx.fill() // 填充
     }
+}
+
+interface Arc {
+    mid: { x: number; y: number }
+    fill: { type: "none" }
+    start: { x: number; y: number }
+    end: { x: number; y: number }
+    stroke: { width: number; type: "default" }
+}
+
+// 向量计算的辅助函数
+function vec2_sub(v1: { x: number; y: number }, v2: { x: number; y: number }) {
+    return { x: v1.x - v2.x, y: v1.y - v2.y }
+}
+
+function vec2_magnitude(v: { x: number; y: number }) {
+    return Math.sqrt(v.x * v.x + v.y * v.y)
+}
+
+function vec2_angle(v: { x: number; y: number }) {
+    return Math.atan2(v.y, v.x)
+}
+
+// 角度标准化到 [-PI, PI]
+function normalize_angle(angle: number) {
+    while (angle > Math.PI) angle -= 2 * Math.PI
+    while (angle <= -Math.PI) angle += 2 * Math.PI
+    return angle
+}
+
+// 计算三点圆心
+function arc_center_from_three_points(
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
+    p3: { x: number; y: number }
+) {
+    const offset = p2.x * p2.x + p2.y * p2.y
+    const bc = (p1.x * p1.x + p1.y * p1.y - offset) / 2
+    const cd = (offset - p3.x * p3.x - p3.y * p3.y) / 2
+    const det = (p1.x - p2.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p2.y)
+
+    const idet = 1 / det
+
+    const centerX = (bc * (p2.y - p3.y) - cd * (p1.y - p2.y)) * idet
+    const centerY = (cd * (p1.x - p2.x) - bc * (p2.x - p3.x)) * idet
+
+    return { x: centerX, y: centerY }
+}
+const drawArc = (
+    ctx: CanvasRenderingContext2D,
+    { fill, start, end, mid, stroke }: Arc
+) => {
+    // 使用放大因子提高精度
+    const u = 1000000
+
+    // 计算圆心
+    const center = arc_center_from_three_points(
+        { x: start.x * u, y: start.y * u },
+        { x: mid.x * u, y: mid.y * u },
+        { x: end.x * u, y: end.y * u }
+    )
+
+    // 还原实际坐标
+    center.x /= u
+    center.y /= u
+
+    // 计算半径
+    const radius = vec2_magnitude(vec2_sub(mid, center))
+
+    // 计算角度
+    const startRadial = vec2_sub(start, center)
+    const midRadial = vec2_sub(mid, center)
+    const endRadial = vec2_sub(end, center)
+
+    const startAngle = vec2_angle(startRadial)
+    const midAngle = vec2_angle(midRadial)
+    let endAngle = vec2_angle(endRadial)
+
+    // 计算弧度
+    const angle1 = normalize_angle(midAngle - startAngle)
+    const angle2 = normalize_angle(endAngle - midAngle)
+    const arcAngle = angle1 + angle2
+
+    endAngle = startAngle + arcAngle
+
+    // 绘制圆弧
+    ctx.beginPath()
+    ctx.arc(center.x, center.y, radius, startAngle, endAngle)
+    ctx.lineWidth = stroke.width
+    ctx.strokeStyle = "black"
+    ctx.stroke()
+}
+
+const drawRectangle = (
+    ctx: CanvasRenderingContext2D,
+    { fill, start, end, stroke }: Rectangle
+) => {
+    ctx.beginPath()
+    ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y)
+    ctx.lineWidth = stroke.width
+    ctx.strokeStyle = "black"
+    ctx.stroke()
+    ctx.fillStyle = "green"
+    // ctx.fill() // 填充内部
 }
 
 class SymbolPin {
@@ -150,15 +253,16 @@ class SymbolPin {
     }
 }
 
+let count = 0
 export class KicadSymbol {
     name: string
     symbols: KicadSymbol[]
     circles: Circle[]
     polylines: Polyline[]
-    // rectangles: Rectangle[]
-
+    rectangles: Rectangle[]
     pins: SymbolPin[]
     elements: any[] = []
+    arcs: Arc[]
 
     constructor(symbol, kCanvas: KicadCanvas) {
         this.name = symbol.name
@@ -166,6 +270,9 @@ export class KicadSymbol {
         this.circles = symbol.circles || []
         this.polylines = symbol.polylines || []
         this.pins = symbol.pins || []
+        this.rectangles = symbol.rectangles || []
+        this.arcs = symbol.arcs || []
+
         for (const pin of this.pins) {
             const _pin = new SymbolPin(pin)
             kCanvas.addElement(_pin)
@@ -179,9 +286,22 @@ export class KicadSymbol {
 
     public draw(ctx: CanvasRenderingContext2D, kCanvas: KicadCanvas) {
         // 绘制符号
+
+        for (const rectangle of this.rectangles) {
+            // if (count < 2) {
+            //     drawRectangle(ctx, rectangle)
+            //     count++
+            // }
+            // console.log("rectangle", rectangle)
+            drawRectangle(ctx, rectangle)
+        }
         for (const circle of this.circles) {
             drawCircle(ctx, circle)
         }
+        for (const arc of this.arcs) {
+            drawArc(ctx, arc)
+        }
+
         for (const polyline of this.polylines) {
             drawPolyline(ctx, polyline)
         }

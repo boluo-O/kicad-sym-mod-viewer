@@ -133,6 +133,18 @@ const parseRowMap = {
     end: (o, listProps, parseTokenList) => {
         o.end = { x: listProps[1], y: listProps[2] }
     },
+    mid: (o, listProps, parseTokenList) => {
+        o.mid = { x: listProps[1], y: listProps[2] }
+    },
+    arc: (o, listProps, parseTokenList) => {
+        const arc = {}
+        parseTokenList(arc, listProps.slice(1))
+        if (o.arcs) {
+            o.arcs.push(arc)
+        } else {
+            o.arcs = [arc]
+        }
+    },
 }
 
 const parseTokenList = (o, tokenList) => {
@@ -183,6 +195,22 @@ const __main = () => {
             kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
             kc.draw()
             console.timeEnd("测试耗时2")
+        })
+    fetch("./ONSC-MC1496_B-14.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            // console.log("data", data)
+            console.time("测试耗时3")
+
+            const tokenList = listify(data)[0] as any[]
+            console.log("tokenList", tokenList)
+            const o = {}
+            parseTokenList(o, tokenList)
+            console.log("o", o)
+            const kc = new KicadCanvas({})
+            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
+            kc.draw()
+            console.timeEnd("测试耗时3")
         })
 }
 
