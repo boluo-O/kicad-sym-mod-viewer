@@ -212,6 +212,38 @@ const __main = () => {
             kc.draw()
             console.timeEnd("测试耗时3")
         })
+    fetch("./test2.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            // console.log("data", data)
+            console.time("测试耗时4")
+
+            const tokenList = listify(data)[0] as any[]
+            console.log("tokenList", tokenList)
+            const o = {}
+            parseTokenList(o, tokenList)
+            console.log("o", o)
+            const kc = new KicadCanvas({})
+            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
+            kc.draw()
+            console.timeEnd("测试耗时4")
+        })
+    // fetch("./SOT-23.kicad_mod")
+    //     .then((res) => res.text())
+    //     .then((data) => {
+    //         // console.log("data", data)
+    //         console.time("测试耗时5")
+
+    //         const tokenList = listify(data)[0] as any[]
+    //         console.log("tokenList", tokenList)
+    //         const o = {}
+    //         parseTokenList(o, tokenList)
+    //         console.log("o", o)
+    //         const kc = new KicadCanvas({})
+    //         kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
+    //         kc.draw()
+    //         console.timeEnd("测试耗时5")
+    //     })
 }
 
 __main()

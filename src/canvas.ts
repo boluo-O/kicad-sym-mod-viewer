@@ -165,8 +165,8 @@ const drawRectangle = (
     ctx.lineWidth = stroke.width
     ctx.strokeStyle = "black"
     ctx.stroke()
-    ctx.fillStyle = "green"
-    // ctx.fill() // 填充内部
+    ctx.fillStyle = "#423e55cc"
+    ctx.fill() // 填充内部
 }
 
 class SymbolPin {
@@ -288,11 +288,6 @@ export class KicadSymbol {
         // 绘制符号
 
         for (const rectangle of this.rectangles) {
-            // if (count < 2) {
-            //     drawRectangle(ctx, rectangle)
-            //     count++
-            // }
-            // console.log("rectangle", rectangle)
             drawRectangle(ctx, rectangle)
         }
         for (const circle of this.circles) {
