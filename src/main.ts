@@ -1,5 +1,6 @@
 import { listify, tokenize } from "./tokenizer.ts"
-import { KicadCanvas, KicadSymbol } from "./canvas.ts"
+import { KicadCanvas } from "./kicad-canvas/index.ts"
+import { KCSymbol } from "./kicad-canvas/element.ts"
 import { createDraft } from "immer"
 
 const parseRowMap = {
@@ -175,8 +176,8 @@ const __main = () => {
             console.log("o", o)
             const kc = new KicadCanvas({})
 
-            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
-            kc.draw()
+            kc.addElements(o.symbols.map((s) => new KCSymbol(s, kc)))
+            kc.firstDraw()
             console.timeEnd("测试耗时1")
             // func(tokenList)
         })
@@ -192,8 +193,8 @@ const __main = () => {
             parseTokenList(o, tokenList)
             console.log("o", o)
             const kc = new KicadCanvas({})
-            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
-            kc.draw()
+            kc.addElements(o.symbols.map((s) => new KCSymbol(s, kc)))
+            kc.firstDraw()
             console.timeEnd("测试耗时2")
         })
     fetch("./ONSC-MC1496_B-14.kicad_sym")
@@ -208,8 +209,8 @@ const __main = () => {
             parseTokenList(o, tokenList)
             console.log("o", o)
             const kc = new KicadCanvas({})
-            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
-            kc.draw()
+            kc.addElements(o.symbols.map((s) => new KCSymbol(s, kc)))
+            kc.firstDraw()
             console.timeEnd("测试耗时3")
         })
     fetch("./test2.kicad_sym")
@@ -224,26 +225,26 @@ const __main = () => {
             parseTokenList(o, tokenList)
             console.log("o", o)
             const kc = new KicadCanvas({})
-            kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
-            kc.draw()
+            kc.addElements(o.symbols.map((s) => new KCSymbol(s, kc)))
+            kc.firstDraw()
             console.timeEnd("测试耗时4")
         })
-    // fetch("./SOT-23.kicad_mod")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         // console.log("data", data)
-    //         console.time("测试耗时5")
+    fetch("./SOT-23.kicad_mod")
+        .then((res) => res.text())
+        .then((data) => {
+            // console.log("data", data)
+            console.time("测试耗时5")
 
-    //         const tokenList = listify(data)[0] as any[]
-    //         console.log("tokenList", tokenList)
-    //         const o = {}
-    //         parseTokenList(o, tokenList)
-    //         console.log("o", o)
-    //         const kc = new KicadCanvas({})
-    //         kc.addElements(o.symbols.map((s) => new KicadSymbol(s, kc)))
-    //         kc.draw()
-    //         console.timeEnd("测试耗时5")
-    //     })
+            const tokenList = listify(data)[0] as any[]
+            console.log("tokenList", tokenList)
+            const o = {}
+            parseTokenList(o, tokenList)
+            console.log("o", o)
+            const kc = new KicadCanvas({})
+            kc.addElements(o.symbols.map((s) => new KCSymbol(s, kc)))
+            kc.firstDraw()
+            console.timeEnd("测试耗时5")
+        })
 }
 
 __main()
