@@ -138,6 +138,10 @@ export class KicadCanvas {
             this.addElements(element.pins)
         }
 
+        if (element.pads && element.pads.length > 0) {
+            this.addElements(element.pads)
+        }
+
         if (element.shapes && element.shapes.length > 0) {
             this.shapes.push(...element.shapes)
         }

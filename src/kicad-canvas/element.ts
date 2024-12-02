@@ -5,27 +5,22 @@ import {
     Arc,
     KicadShape,
     KicadShapeListMap,
+    Line,
 } from "./shape"
 import { KicadCanvas, KicadCanvasStore } from "./index"
 
 abstract class KicadCanvasElement {
     shapeMap: KicadShapeListMap = {}
 }
-function countDigits(num: number): number {
-    // Handle negative numbers by converting to positive
-    const absNum = Math.abs(num)
 
-    // Handle 0 as a special case
-    if (absNum === 0) return 1
-
-    // Use Math.floor(Math.log10(n)) + 1 to count digits
-    return Math.floor(Math.log10(absNum)) + 1
+interface Size {
+    width: number
+    height: number
 }
-
 export class SymbolPin {
     shape: "line"
-    name: { text: string; effects: { font: { size: number } } }
-    number: { text: string; effects: { font: { size: number } } }
+    name: { text: string; effects: { font: { size: Size } } }
+    number: { text: string; effects: { font: { size: Size } } }
     at: { x: number; y: number; rotate: number }
     length: number
     isMouseHovering: boolean = false
@@ -38,7 +33,7 @@ export class SymbolPin {
         this.shape = shape
     }
 
-    public bindEvent(ctx, kCanvas: KicadCanvas) {
+    public bindEvent(ctx: CanvasRenderingContext2D, kCanvas: KicadCanvas) {
         // 添加鼠标移动检测引脚
         kCanvas.canvas.addEventListener("mousemove", (event) => {
             const preIsMouseHovering = this.isMouseHovering
@@ -92,24 +87,11 @@ export class SymbolPin {
         ctx.lineTo(0, -this.length) // 绘制引脚
         ctx.stroke()
         ctx.restore() // 恢复之前的状态
-        // ctx.rotate(0)
-        // ctx.font = `${this.name.effects.font.size}px Arial` // 设置字体大小
-        // ctx.fillText(
-        //     this.name.text,
-        //     0,
-        //     -this.length + this.name.effects.font.size
-        // ) // 名称
-        // ctx.fillText(
-        //     this.number.text,
-        //     0,
-        //     -this.length + this.name.effects.font.size * 2
-        // ) // 编号
-        // ctx.restore()
-        // 重新保存上下文状态用于绘制文字
 
+        // pin 文字和数字
         ctx.save()
         ctx.translate(this.at.x, this.at.y)
-        ctx.font = `${this.name.effects.font.size || 1.27}px Arial`
+        ctx.font = `${this.name.effects.font.size.width || 1.27}px Arial`
         ctx.strokeStyle = "black"
         ctx.fillStyle = "black"
         // 根据旋转角度确定文本位置
@@ -124,13 +106,13 @@ export class SymbolPin {
             ctx.fillText(
                 this.number.text,
                 this.length / 2 - numberWidth / 2,
-                -this.name.effects.font.size / 2
+                -this.name.effects.font.size.width / 2
             )
             // name在line结尾点
             ctx.fillText(
                 this.name.text,
                 this.length + textPdding,
-                this.name.effects.font.size / 2
+                this.name.effects.font.size.width / 2
             )
         } else if (rotation === 180) {
             // 右边
@@ -138,13 +120,13 @@ export class SymbolPin {
             ctx.fillText(
                 this.number.text,
                 -this.length / 2 - numberWidth / 2,
-                -this.name.effects.font.size / 2
+                -this.name.effects.font.size.width / 2
             )
             // name在line结尾点
             ctx.fillText(
                 this.name.text,
                 -this.length - nameWidth - textPdding,
-                this.name.effects.font.size / 2
+                this.name.effects.font.size.width / 2
             )
         } else if (rotation === 90) {
             // 上边
@@ -152,13 +134,13 @@ export class SymbolPin {
             // number在line结尾点
             ctx.fillText(
                 this.number.text,
-                this.length - this.name.effects.font.size,
+                this.length - this.name.effects.font.size.width,
                 0
             )
             // name在number上方
             ctx.fillText(
                 this.name.text,
-                this.length + this.name.effects.font.size + textPdding,
+                this.length + this.name.effects.font.size.width + textPdding,
                 0
             )
         } else if (rotation === 270) {
@@ -167,7 +149,7 @@ export class SymbolPin {
             // number在name下方
             ctx.fillText(
                 this.number.text,
-                -this.length + this.name.effects.font.size,
+                -this.length + this.name.effects.font.size.width,
                 0
             )
             // name在line结尾点
@@ -175,16 +157,6 @@ export class SymbolPin {
         }
         ctx.restore()
     }
-}
-
-interface Symbol {
-    name: string
-    pins: SymbolPin[]
-    symbols: Symbol[]
-    rectangles: Rectangle[]
-    circles: Circle[]
-    polylines: Polyline[]
-    arcs: Arc[]
 }
 
 export class KCSymbol extends KicadCanvasElement {
@@ -215,6 +187,175 @@ export class KCSymbol extends KicadCanvasElement {
             ...circles.map((c: any) => new Circle(c)),
             ...polylines.map((p: any) => new Polyline(p)),
             ...arcs.map((a: any) => new Arc(a))
+        )
+    }
+}
+
+export class FootPointPad {
+    number: string
+    type: "smd" | "thru_hole" | "np_thru_hole"
+    shape: "rect" | "circle" | "oval" | "roundrect" | "custom"
+    at: { x: number; y: number; angle?: number }
+    size: { width: number; height: number }
+    drill?: { size: number; offset?: { x: number; y: number } }
+    layers: string[]
+    roundrect_rratio: number
+
+    constructor(pad: any) {
+        this.number = pad.number
+        this.type = pad.type
+        this.shape = pad.shape
+        this.at = pad.at
+        this.size = pad.size
+        this.drill = pad.drill
+        this.layers = pad.layers
+        this.roundrect_rratio = pad.roundrect_rratio
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.save()
+        console.log("画pad")
+
+        // 移动到焊盘中心位置
+        ctx.translate(this.at.x, this.at.y)
+        if (this.at.angle) {
+            ctx.rotate((this.at.angle * Math.PI) / 180)
+        }
+
+        // 根据类型设置样式
+        this.setStyle(ctx)
+        console.log("this", this)
+        // 根据形状绘制
+        switch (this.shape) {
+            case "rect":
+                this.drawRect(ctx)
+                break
+            case "circle":
+                this.drawCircle(ctx)
+                break
+            case "oval":
+                this.drawOval(ctx)
+                break
+            case "roundrect":
+                this.drawRoundRect(ctx)
+                break
+        }
+
+        // 如果是通孔，绘制钻孔
+        if (this.type === "thru_hole" && this.drill) {
+            this.drawDrill(ctx)
+        }
+
+        ctx.restore()
+    }
+
+    private setStyle(ctx: CanvasRenderingContext2D) {
+        ctx.fillStyle = "#C2362D" // 顶层铜箔色
+        // 根据层设置颜色
+        // if (this.layers.includes("F.Cu")) {
+        //     ctx.fillStyle = "#C2362D" // 顶层铜箔色
+        // } else if (this.layers.includes("B.Cu")) {
+        //     ctx.fillStyle = "#1D5D87" // 底层铜箔色
+        // }
+    }
+
+    private drawRect(ctx: CanvasRenderingContext2D) {
+        const { width, height } = this.size
+        ctx.fillRect(-width / 2, -height / 2, width, height)
+    }
+
+    private drawCircle(ctx: CanvasRenderingContext2D) {
+        ctx.beginPath()
+        ctx.arc(0, 0, this.size.width / 2, 0, Math.PI * 2)
+        ctx.fill()
+    }
+
+    private drawOval(ctx: CanvasRenderingContext2D) {
+        const { width, height } = this.size
+        ctx.beginPath()
+        ctx.ellipse(0, 0, width / 2, height / 2, 0, 0, Math.PI * 2)
+        ctx.fill()
+    }
+
+    private drawRoundRect(ctx: CanvasRenderingContext2D) {
+        const { width, height } = this.size
+        const radius = Math.min(width, height) * this.roundrect_rratio
+
+        ctx.beginPath()
+        ctx.moveTo(-width / 2 + radius, -height / 2)
+        ctx.lineTo(width / 2 - radius, -height / 2)
+        ctx.arcTo(
+            width / 2,
+            -height / 2,
+            width / 2,
+            -height / 2 + radius,
+            radius
+        )
+        ctx.lineTo(width / 2, height / 2 - radius)
+        ctx.arcTo(width / 2, height / 2, width / 2 - radius, height / 2, radius)
+        ctx.lineTo(-width / 2 + radius, height / 2)
+        ctx.arcTo(
+            -width / 2,
+            height / 2,
+            -width / 2,
+            height / 2 - radius,
+            radius
+        )
+        ctx.lineTo(-width / 2, -height / 2 + radius)
+        ctx.arcTo(
+            -width / 2,
+            -height / 2,
+            -width / 2 + radius,
+            -height / 2,
+            radius
+        )
+        ctx.fill()
+    }
+
+    private drawDrill(ctx: CanvasRenderingContext2D) {
+        if (this.drill) {
+            ctx.fillStyle = "#000000" // 钻孔颜色
+
+            const drillOffset = this.drill.offset || { x: 0, y: 0 }
+            ctx.beginPath()
+            ctx.arc(
+                drillOffset.x,
+                drillOffset.y,
+                this.drill.size / 2,
+                0,
+                Math.PI * 2
+            )
+            ctx.fill()
+        }
+    }
+}
+
+export class KCFootPoint extends KicadCanvasElement {
+    number: string
+    roundrect_rratio: number
+    shapes: KicadShape[] = []
+    pads: FootPointPad[] = []
+
+    constructor(symbol: any) {
+        super()
+        const {
+            number,
+            pads = [],
+            lines = [],
+            roundrect_rratio,
+            symbols = [],
+            rectangles = [],
+            circles = [],
+
+            arcs = [],
+        } = symbol
+        this.number = number
+        this.pads = pads.map((p: any) => new FootPointPad(p))
+        this.roundrect_rratio = roundrect_rratio
+
+        this.shapes.push(
+            // ...rectangles.map((r: any) => new Rectangle(r)),
+            ...lines.map((l: any) => new Line(l))
         )
     }
 }

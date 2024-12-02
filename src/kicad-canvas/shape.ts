@@ -186,6 +186,35 @@ export class Arc extends Shape {
     }
 }
 
+export class Line {
+    start: Point
+    end: Point
+    width: number
+
+    constructor(public line: Line) {
+        this.start = line.start
+        this.end = line.end
+        this.width = line.width
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.save()
+
+        // 设置线条样式
+        ctx.lineWidth = this.width
+        ctx.strokeStyle = "black"
+        // ctx.strokeStyle = this.getLayerColor()  // 根据层设置颜色
+
+        // 开始绘制
+        ctx.beginPath()
+        ctx.moveTo(this.start.x, this.start.y)
+        ctx.lineTo(this.end.x, this.end.y)
+        ctx.stroke()
+
+        ctx.restore()
+    }
+}
+
 export class Rectangle extends Shape {
     fill: Fill
     start: Point

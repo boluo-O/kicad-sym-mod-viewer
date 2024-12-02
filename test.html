@@ -78,7 +78,6 @@
         <div class="flex-container" id="myElement">
             <!-- Individual canvas containers within the container -->
             <div class="canvas-container">
-                <!-- For multiple parts , there will be a combobox -->
                 <kicad-symbol-viewer
                     controls="basic"
                     id="symWrap"
@@ -89,15 +88,16 @@
                     ></ecad-source>
                 </kicad-symbol-viewer>
             </div>
-            <!-- <div class="canvas-container">
+            <div class="canvas-container">
                 <kicad-footprint-viewer
                     controls="basic"
                     id="sizeWrap"
                     class="itemCls"
+                    src="./public/SOT-23.kicad_mod"
                 >
                 </kicad-footprint-viewer>
             </div>
-            <div class="canvas-container" id="threeModule">
+            <!-- <div class="canvas-container" id="threeModule">
                 <online-3d-viewer class="itemCls">
                     <ecad-source
                         src="ul_AD5541ABRMZ/RM_10_ADI.step"
