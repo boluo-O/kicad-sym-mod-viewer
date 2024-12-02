@@ -215,7 +215,6 @@ export class FootPointPad {
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save()
         console.log("画pad")
-
         // 移动到焊盘中心位置
         ctx.translate(this.at.x, this.at.y)
         if (this.at.angle) {
@@ -241,6 +240,13 @@ export class FootPointPad {
                 break
         }
 
+        // 绘制焊盘编号
+        ctx.fillStyle = "#FFFFFF" // 设置文字颜色为白色
+        const fontSize = Math.min(this.size.width, this.size.height) * 0.5 // 动态设置字体大小
+        ctx.font = `${fontSize}px Arial` // 设置文字大小和字体
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(this.number, 0, 0) // 在焊盘中心绘制编号
         // 如果是通孔，绘制钻孔
         if (this.type === "thru_hole" && this.drill) {
             this.drawDrill(ctx)

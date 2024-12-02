@@ -69,13 +69,13 @@ const testFootprint = () => {
             drawKicadModule(data)
             console.timeEnd("测试耗时f 1")
         })
-    // fetch("./DP83822HRHBT.kicad_mod")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         console.time("测试耗时f 2")
-    //         drawKicadModule(data)
-    //         console.timeEnd("测试耗时f 2")
-    //     })
+    fetch("./DP83822HRHBT.kicad_mod")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时f 2")
+            drawKicadModule(data)
+            console.timeEnd("测试耗时f 2")
+        })
 }
 
 const __main = () => {
