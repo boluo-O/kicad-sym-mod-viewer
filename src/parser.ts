@@ -34,15 +34,6 @@ const parseRowMap: Record<
         }
     },
     // 封装图相关
-    fp_line: (o, propsList, injectPropsbyParseTokenList) => {
-        const line = {}
-        injectPropsbyParseTokenList(line, propsList.slice(1))
-        if (o.lines) {
-            o.lines.push(line)
-        } else {
-            o.lines = [line]
-        }
-    },
     pad: (o, propsList, injectPropsbyParseTokenList) => {
         const pad = {
             number: propsList[1],
@@ -54,6 +45,33 @@ const parseRowMap: Record<
             o.pads.push(pad)
         } else {
             o.pads = [pad]
+        }
+    },
+    fp_line: (o, propsList, injectPropsbyParseTokenList) => {
+        const line = {}
+        injectPropsbyParseTokenList(line, propsList.slice(1))
+        if (o.lines) {
+            o.lines.push(line)
+        } else {
+            o.lines = [line]
+        }
+    },
+    fp_poly: (o, propsList, injectPropsbyParseTokenList) => {
+        const polyline = {}
+        injectPropsbyParseTokenList(polyline, propsList.slice(1))
+        if (o.polylines) {
+            o.polylines.push(polyline)
+        } else {
+            o.polylines = [polyline]
+        }
+    },
+    fp_circle: (o, propsList, injectPropsbyParseTokenList) => {
+        const circle = {}
+        injectPropsbyParseTokenList(circle, propsList.slice(1))
+        if (o.circles) {
+            o.circles.push(circle)
+        } else {
+            o.circles = [circle]
         }
     },
     // 图形形状
@@ -95,13 +113,10 @@ const parseRowMap: Record<
     },
     // 其他通用
     layer: (o, propsList, injectPropsbyParseTokenList) => {
-        const layer = {}
-        injectPropsbyParseTokenList(layer, propsList.slice(1))
-        if (o.layers) {
-            o.layers.push(layer)
-        } else {
-            o.layers = [layer]
-        }
+        o.layer = propsList[1]
+    },
+    layers: (o, propsList, injectPropsbyParseTokenList) => {
+        o.layers = propsList.slice(1)
     },
     roundrect_rratio: (o, propsList, injectPropsbyParseTokenList) => {
         o.roundrect_rratio = propsList[1]
@@ -141,17 +156,22 @@ const parseRowMap: Record<
         o.radius = propsList[1]
     },
     fill: (o, propsList, injectPropsbyParseTokenList) => {
-        o.fill = {}
-        injectPropsbyParseTokenList(o.fill, propsList.slice(1))
+        if (typeof propsList[1] === "string") {
+            o.fill = propsList[1]
+        } else {
+            o.fill = {}
+            injectPropsbyParseTokenList(o.fill, propsList.slice(1))
+        }
     },
     line: (o, propsList, injectPropsbyParseTokenList) => {
         o.line = {}
         injectPropsbyParseTokenList(o.line, propsList.slice(1))
     },
     at: (o, propsList, injectPropsbyParseTokenList) => {
-        o.at = propsList[3]
-            ? { x: propsList[1], y: propsList[2], rotate: propsList[3] }
-            : { x: propsList[1], y: propsList[2] }
+        o.at =
+            propsList[3] === undefined
+                ? { x: propsList[1], y: propsList[2] }
+                : { x: propsList[1], y: propsList[2], rotate: propsList[3] }
     },
     length: (o, propsList, injectPropsbyParseTokenList) => {
         o.length = propsList[1]

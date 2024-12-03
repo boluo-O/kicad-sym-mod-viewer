@@ -1,3 +1,5 @@
+import theme, { Theme } from "./themes/kicad-default"
+
 export interface Point {
     x: number
     y: number
@@ -30,6 +32,53 @@ export interface KicadShapeListMap {
     rectangles?: Rectangle[]
 }
 
+const getLayerColor = (layer: string): string => {
+    switch (layer) {
+        // 铜箔层
+        case "F.Cu":
+            return theme.board.copper.f.to_css()
+        case "B.Cu":
+            return theme.board.copper.b.to_css()
+
+        // 丝印层
+        case "F.SilkS":
+            return theme.board.f_silks.to_css()
+        case "B.SilkS":
+            return theme.board.b_silks.to_css()
+
+        // 阻焊层
+        case "F.Mask":
+            return theme.board.f_mask.to_css()
+        case "B.Mask":
+            return theme.board.b_mask.to_css()
+
+        // 锡膏层
+        case "F.Paste":
+            return theme.board.f_paste.to_css()
+        case "B.Paste":
+            return theme.board.b_paste.to_css()
+
+        // 边框层
+        case "Edge.Cuts":
+            return theme.board.edge_cuts.to_css()
+
+        // 装配边界
+        case "F.CrtYd":
+            return theme.board.f_crtyd.to_css()
+        case "B.CrtYd":
+            return theme.board.b_crtyd.to_css()
+
+        // 装配图
+        case "F.Fab":
+            return theme.board.f_fab.to_css()
+        case "B.Fab":
+            return theme.board.b_fab.to_css()
+
+        default:
+            return "rgb(255, 255, 255)" // 默认颜色
+    }
+}
+
 export class Circle extends Shape {
     center: Point
     radius: number
@@ -50,11 +99,62 @@ export class Circle extends Shape {
         ctx.arc(this.center.x, this.center.y, this.radius, 0, Math.PI * 2) // 使用 radius 变量
         ctx.lineWidth = this.stroke.width // 使用 strokeWidth 变量
         // ctx.strokeStyle = stroke.type // 设置边框颜色
-        ctx.strokeStyle = "black" // 设置边框颜色
+        ctx.strokeStyle = theme.schematic.component_outline.to_css()
         ctx.stroke() // 绘制边框
         // ctx.fillStyle = fill.type // 设置填充颜色
         ctx.fillStyle = "transparent" // 设置填充颜色
         ctx.fill() // 填充圆
+    }
+}
+
+export class FpCircle extends Shape {
+    center: Point
+    end: Point
+    layer: string
+    width: number
+    fill: "none" | "solid"
+    stroke: { type: string; width: number }
+
+    constructor(circle: any) {
+        super()
+        this.center = circle.center
+        this.end = circle.end
+        this.layer = circle.layer
+        this.width = circle.width || 0
+        this.fill = circle.fill || "none"
+        this.stroke = circle.stroke || { type: "default", width: 0 }
+        console.log("this fpcircle", this)
+    }
+
+    // 计算半径
+    private getRadius(): number {
+        return Math.sqrt(
+            Math.pow(this.end.x - this.center.x, 2) +
+                Math.pow(this.end.y - this.center.y, 2)
+        )
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        ctx.save()
+
+        // 设置样式
+        ctx.lineWidth = this.stroke.width || this.width || 1.75
+
+        ctx.strokeStyle = getLayerColor(this.layer)
+        ctx.fillStyle = getLayerColor(this.layer)
+
+        // 绘制圆
+        ctx.beginPath()
+        ctx.arc(this.center.x, this.center.y, this.getRadius(), 0, Math.PI * 2)
+        // 根据fill属性决定是否填充
+        if (this.fill === "solid") {
+            ctx.fill()
+        }
+        if (this.stroke.width > 0) {
+            ctx.stroke()
+        }
+
+        ctx.restore()
     }
 }
 
@@ -63,12 +163,15 @@ export class Polyline extends Shape {
     fill: Fill
     type: KicadShapeType = "polyline"
     stroke: Stroke
+    layer: string
 
     constructor(public polyline: Polyline) {
         super()
         this.pts = polyline.pts
         this.fill = polyline.fill
         this.stroke = polyline.stroke
+        this.layer = polyline.layer
+        console.log("polyline", polyline)
     }
 
     draw(ctx: CanvasRenderingContext2D) {
@@ -80,7 +183,11 @@ export class Polyline extends Shape {
         }
 
         ctx.lineWidth = this.stroke.width
-        ctx.strokeStyle = "black" // 线条颜色
+        if (this.layer) {
+            ctx.strokeStyle = getLayerColor(this.layer)
+        } else {
+            ctx.strokeStyle = theme.schematic.component_outline.to_css()
+        }
         ctx.stroke() // 绘制线条
 
         if (this.fill.type === "outline") {
@@ -181,7 +288,7 @@ export class Arc extends Shape {
         ctx.beginPath()
         ctx.arc(center.x, center.y, radius, startAngle, endAngle)
         ctx.lineWidth = this.stroke.width
-        ctx.strokeStyle = "black"
+        ctx.strokeStyle = theme.schematic.component_outline.to_css()
         ctx.stroke()
     }
 }
@@ -190,11 +297,13 @@ export class Line {
     start: Point
     end: Point
     width: number
+    layer: string
 
     constructor(public line: Line) {
         this.start = line.start
         this.end = line.end
         this.width = line.width
+        this.layer = line.layer
     }
 
     draw(ctx: CanvasRenderingContext2D) {
@@ -202,8 +311,11 @@ export class Line {
 
         // 设置线条样式
         ctx.lineWidth = this.width
-        ctx.strokeStyle = "black"
-        // ctx.strokeStyle = this.getLayerColor()  // 根据层设置颜色
+        if (this.layer) {
+            ctx.strokeStyle = getLayerColor(this.layer)
+        } else {
+            ctx.strokeStyle = "black"
+        }
 
         // 开始绘制
         ctx.beginPath()
@@ -238,9 +350,9 @@ export class Rectangle extends Shape {
             this.end.y - this.start.y
         )
         ctx.lineWidth = this.stroke.width
-        ctx.strokeStyle = "black"
+        ctx.strokeStyle = theme.schematic.component_outline.to_css()
+        ctx.fillStyle = theme.schematic.component_body.to_css()
         ctx.stroke()
-        ctx.fillStyle = "green"
         ctx.fill() // 填充内部
     }
 }

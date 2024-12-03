@@ -7,7 +7,9 @@ import { injectPropsbyParseTokenList } from "./parser.ts"
 const drawKicadSymbol = (kicadSymbolFileText: string) => {
     const tokenList = listify(kicadSymbolFileText)[0] as any[]
     const o = {} as any
+    console.log("tokenList", tokenList)
     injectPropsbyParseTokenList(o, tokenList)
+    console.log("o", o)
     const kc = new KicadCanvas({})
     kc.addElements(o.symbols.map((s: any) => new KCSymbol(s)))
     kc.firstDraw()
@@ -21,7 +23,7 @@ const drawKicadModule = (kicadSymbolFileText: string) => {
     console.log("o", o)
     const kc = new KicadCanvas({})
     kc.addElement(new KCFootPoint(o))
-    kc.draw()
+    kc.firstDraw()
 }
 const testSymbol = () => {
     fetch("./MMBFJ112.kicad_sym")
@@ -52,13 +54,6 @@ const testSymbol = () => {
             drawKicadSymbol(data)
             console.timeEnd("测试耗时4")
         })
-    fetch("./SOT-23.kicad_mod")
-        .then((res) => res.text())
-        .then((data) => {
-            console.time("测试耗时5")
-            drawKicadSymbol(data)
-            console.timeEnd("测试耗时5")
-        })
 }
 
 const testFootprint = () => {
@@ -79,8 +74,8 @@ const testFootprint = () => {
 }
 
 const __main = () => {
-    // testSymbol()
-    testFootprint()
+    testSymbol()
+    // testFootprint()
 }
 
 __main()

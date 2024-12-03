@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla"
 import { KicadShape, KicadShapeListMap } from "./shape"
-import { SymbolPin } from "./element"
+import { FootPointPad, SymbolPin } from "./element"
 // const useStore = create((set) => ({
 //     count: 0,
 //     increment: () => set((state) => ({ count: state.count + 1 })),
@@ -9,14 +9,10 @@ const defaultCanvas = document.createElement("canvas") as HTMLCanvasElement
 const defaultCanvasContext = defaultCanvas.getContext(
     "2d"
 ) as CanvasRenderingContext2D
-export const KicadCanvasStore = createStore<{
-    ctx2d: CanvasRenderingContext2D
-    canvas: HTMLCanvasElement
-    kcCanvas: KicadCanvas | null
+export const kicadCanvasStore = createStore<{
+    hightLightPinOrPadNumber: string
 }>(() => ({
-    ctx2d: defaultCanvasContext,
-    canvas: defaultCanvas,
-    kcCanvas: null,
+    hightLightPinOrPadNumber: "",
 }))
 
 export class KicadCanvas {
@@ -53,11 +49,7 @@ export class KicadCanvas {
         ctx.scale(ratio, ratio) // 缩放上下文以适应高分辨率
         this.canvas = canvas
         this.ctx = ctx
-        KicadCanvasStore.setState({
-            ctx2d: ctx,
-            canvas: canvas,
-            kcCanvas: this,
-        })
+
         this.bindCanvasControl()
 
         this.draw()
@@ -71,6 +63,7 @@ export class KicadCanvas {
                 this.isDragging = true
                 this.startX = event.clientX - this.offsetX
                 this.startY = event.clientY - this.offsetY
+                console.log("点击")
             }
         })
 
@@ -81,6 +74,7 @@ export class KicadCanvas {
                 this.offsetX = event.clientX - this.startX
                 this.offsetY = event.clientY - this.startY
                 this.draw() // 重新绘制
+                console.log("拖拽")
             }
             const rect = this.canvas.getBoundingClientRect()
 
@@ -157,7 +151,9 @@ export class KicadCanvas {
         }
     }
 
-    autoFit(padding = 20) {
+    autoFit() {
+        const paddingX = 10
+        const paddingY = 40
         const bounds = this.calculateBounds()
         if (!bounds) return
 
@@ -167,8 +163,8 @@ export class KicadCanvas {
         const canvasHeight = this.canvas.height / ratio
 
         // 计算缩放比例
-        const scaleX = (canvasWidth - padding * 2) / bounds.width
-        const scaleY = (canvasHeight - padding * 2) / bounds.height
+        const scaleX = (canvasWidth - paddingX * 2) / bounds.width
+        const scaleY = (canvasHeight - paddingY * 2) / bounds.height
         this.scale = Math.min(scaleX, scaleY)
 
         // 计算居中偏移
@@ -195,77 +191,45 @@ export class KicadCanvas {
         let maxX = -Infinity
         let maxY = -Infinity
 
-        // 遍历所有图形计算边界
-        for (const shape of this.shapes) {
-            switch (shape.type) {
-                case "rectangle":
-                    minX = Math.min(minX, shape.start.x)
-                    minY = Math.min(minY, shape.start.y)
-                    maxX = Math.max(maxX, shape.end.x)
-                    maxY = Math.max(maxY, shape.end.y)
-                    break
-
-                case "circle":
-                    minX = Math.min(minX, shape.center.x - shape.radius)
-                    minY = Math.min(minY, shape.center.y - shape.radius)
-                    maxX = Math.max(maxX, shape.center.x + shape.radius)
-                    maxY = Math.max(maxY, shape.center.y + shape.radius)
-                    break
-
-                case "polyline":
-                    for (const pt of shape.pts.xyList) {
-                        minX = Math.min(minX, pt.x)
-                        minY = Math.min(minY, pt.y)
-                        maxX = Math.max(maxX, pt.x)
-                        maxY = Math.max(maxY, pt.y)
-                    }
-                    break
-
-                case "arc":
-                    // 考虑圆弧的起点、中点和终点
-                    const points = [shape.start, shape.mid, shape.end]
-                    for (const pt of points) {
-                        minX = Math.min(minX, pt.x)
-                        minY = Math.min(minY, pt.y)
-                        maxX = Math.max(maxX, pt.x)
-                        maxY = Math.max(maxY, pt.y)
-                    }
-                    break
-            }
-        }
-
-        // 同时考虑 elements 数组中的元素
+        // 遍历所有元素
         for (const element of this.elements) {
             if (element instanceof SymbolPin) {
-                // 计算引脚线段的终点坐标
-                const angle = ((element.at.rotate + 90) * Math.PI) / 180 // 转换为弧度
+                // 计算引脚线段的终点
+                const angle = ((element.at.rotate + 90) * Math.PI) / 180
                 const endX = element.at.x + Math.cos(angle) * element.length
                 const endY = element.at.y + Math.sin(angle) * element.length
 
-                // 考虑引脚起点和终点
+                // 更新边界
                 minX = Math.min(minX, element.at.x, endX)
                 minY = Math.min(minY, element.at.y, endY)
                 maxX = Math.max(maxX, element.at.x, endX)
                 maxY = Math.max(maxY, element.at.y, endY)
+            } else if (element instanceof FootPointPad) {
+                // 考虑焊盘位置和尺寸
+                const halfWidth = element.size.width / 2
+                const halfHeight = element.size.height / 2
 
-                // 考虑文本大小
-                const textSize = Math.max(
-                    element.name.effects.font.size,
-                    element.number.effects.font.size
-                )
+                // 如果有旋转，计算旋转后的边界
+                if (element.at.angle) {
+                    const angle = (element.at.angle * Math.PI) / 180
+                    const cos = Math.abs(Math.cos(angle))
+                    const sin = Math.abs(Math.sin(angle))
 
-                // 根据旋转角度调整文本边界
-                const textPadding = textSize * 2 // 为文本预留足够空间
-                minX = Math.min(minX, endX - textPadding)
-                minY = Math.min(minY, endY - textPadding)
-                maxX = Math.max(maxX, endX + textPadding)
-                maxY = Math.max(maxY, endY + textPadding)
-            } else if (element.getBounds) {
-                const elementBounds = element.getBounds()
-                minX = Math.min(minX, elementBounds.minX)
-                minY = Math.min(minY, elementBounds.minY)
-                maxX = Math.max(maxX, elementBounds.maxX)
-                maxY = Math.max(maxY, elementBounds.maxY)
+                    // 计算旋转后的宽高
+                    const rotatedWidth = halfWidth * cos + halfHeight * sin
+                    const rotatedHeight = halfWidth * sin + halfHeight * cos
+
+                    minX = Math.min(minX, element.at.x - rotatedWidth)
+                    minY = Math.min(minY, element.at.y - rotatedHeight)
+                    maxX = Math.max(maxX, element.at.x + rotatedWidth)
+                    maxY = Math.max(maxY, element.at.y + rotatedHeight)
+                } else {
+                    // 无旋转时直接计算
+                    minX = Math.min(minX, element.at.x - halfWidth)
+                    minY = Math.min(minY, element.at.y - halfHeight)
+                    maxX = Math.max(maxX, element.at.x + halfWidth)
+                    maxY = Math.max(maxY, element.at.y + halfHeight)
+                }
             }
         }
 
@@ -291,6 +255,7 @@ export class KicadCanvas {
 
     firstDraw() {
         this.autoFit()
+        // this.draw()
     }
 
     draw() {

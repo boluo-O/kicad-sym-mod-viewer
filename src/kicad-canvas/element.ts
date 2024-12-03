@@ -6,8 +6,10 @@ import {
     KicadShape,
     KicadShapeListMap,
     Line,
+    FpCircle,
 } from "./shape"
-import { KicadCanvas, KicadCanvasStore } from "./index"
+import { KicadCanvas, kicadCanvasStore } from "./index"
+import theme from "./themes/kicad-default"
 
 abstract class KicadCanvasElement {
     shapeMap: KicadShapeListMap = {}
@@ -38,17 +40,32 @@ export class SymbolPin {
         kCanvas.canvas.addEventListener("mousemove", (event) => {
             const preIsMouseHovering = this.isMouseHovering
             this.isMouseHovering = false
-
+            kicadCanvasStore
             const rect = kCanvas.canvas.getBoundingClientRect()
             const mouseX =
                 (event.clientX - rect.left - kCanvas.offsetX) / kCanvas.scale
             const mouseY =
                 (event.clientY - rect.top - kCanvas.offsetY) / kCanvas.scale
-            const distance = Math.sqrt(
-                Math.pow(mouseX - this.at.x, 2) +
-                    Math.pow(mouseY - this.at.y, 2)
-            )
-            if (distance < 1) {
+
+            // 计算相对于引脚起始点的鼠标坐标
+            const dx = mouseX - this.at.x
+            const dy = mouseY - this.at.y
+            // 将鼠标坐标旋转到引脚的坐标系中
+            const angle = ((this.at.rotate + 90) * Math.PI) / 180
+            const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle)
+            const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle)
+
+            // 定义检测区域的尺寸
+            const rectWidth = this.length // 线段长度
+            const rectHeight = 0.254 * 2 // 线段宽度 (0.254) * 2.5
+
+            // 检查旋转后的坐标是否在检测区域内
+            if (
+                rotatedX >= -rectHeight &&
+                rotatedX <= rectHeight &&
+                rotatedY >= -rectWidth &&
+                rotatedY <= 0 + 0.5 + 0.25 // + 点直径 + 0.25
+            ) {
                 this.isMouseHovering = true
             }
             if (preIsMouseHovering !== this.isMouseHovering) {
@@ -71,8 +88,8 @@ export class SymbolPin {
             ctx.fillStyle = "red"
             // 显示引脚信息
         } else {
-            ctx.strokeStyle = "black"
-            ctx.fillStyle = "black"
+            ctx.strokeStyle = theme.schematic.pin.to_css()
+            ctx.fillStyle = theme.schematic.pin.to_css()
         }
         // pin 点
         ctx.beginPath()
@@ -92,8 +109,8 @@ export class SymbolPin {
         ctx.save()
         ctx.translate(this.at.x, this.at.y)
         ctx.font = `${this.name.effects.font.size.width || 1.27}px Arial`
-        ctx.strokeStyle = "black"
-        ctx.fillStyle = "black"
+        ctx.strokeStyle = theme.schematic.pin_name.to_css()
+        ctx.fillStyle = theme.schematic.pin_name.to_css()
         // 根据旋转角度确定文本位置
         const rotation = this.at.rotate % 360
         const textPdding = 0.5
@@ -178,7 +195,6 @@ export class KCSymbol extends KicadCanvasElement {
             arcs = [],
         } = symbol
         this.name = name
-        // this.symbols = symbol.symbols || []
         this.children = symbols.map((symbol: any) => new KCSymbol(symbol))
         this.pins = pins.map((pin: any) => new SymbolPin(pin))
 
@@ -190,7 +206,9 @@ export class KCSymbol extends KicadCanvasElement {
         )
     }
 }
-
+// 定义字体大小的常量
+const MIN_FONT_SIZE = 0.4 // 最小字体大小（mm）
+const MAX_FONT_SIZE = 2.0 // 最大字体大小（mm）
 export class FootPointPad {
     number: string
     type: "smd" | "thru_hole" | "np_thru_hole"
@@ -200,6 +218,7 @@ export class FootPointPad {
     drill?: { size: number; offset?: { x: number; y: number } }
     layers: string[]
     roundrect_rratio: number
+    isMouseHovering: boolean = false
 
     constructor(pad: any) {
         this.number = pad.number
@@ -212,9 +231,81 @@ export class FootPointPad {
         this.roundrect_rratio = pad.roundrect_rratio
     }
 
+    public bindEvent(ctx: CanvasRenderingContext2D, kCanvas: KicadCanvas) {
+        // 添加鼠标移动检测引脚
+        kCanvas.canvas.addEventListener("mousemove", (event) => {
+            const preIsMouseHovering = this.isMouseHovering
+            this.isMouseHovering = false
+
+            const rect = kCanvas.canvas.getBoundingClientRect()
+            const mouseX =
+                (event.clientX - rect.left - kCanvas.offsetX) / kCanvas.scale
+            const mouseY =
+                (event.clientY - rect.top - kCanvas.offsetY) / kCanvas.scale
+
+            // 计算旋转后的鼠标坐标
+            const angle = ((this.at.angle || 0) * Math.PI) / 180
+            const dx = mouseX - this.at.x
+            const dy = mouseY - this.at.y
+            const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle)
+            const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle)
+
+            // 检查鼠标是否在焊盘范围内
+            const halfWidth = this.size.width / 2
+            const halfHeight = this.size.height / 2
+
+            // 根据焊盘形状检查是否在范围内
+            switch (this.shape) {
+                case "rect":
+                case "roundrect":
+                    // 矩形和圆角矩形使用矩形检测
+                    if (
+                        rotatedX >= -halfWidth &&
+                        rotatedX <= halfWidth &&
+                        rotatedY >= -halfHeight &&
+                        rotatedY <= halfHeight
+                    ) {
+                        this.isMouseHovering = true
+                    }
+                    break
+
+                case "circle":
+                    // 圆形使用距离检测
+                    const distance = Math.sqrt(
+                        rotatedX * rotatedX + rotatedY * rotatedY
+                    )
+                    if (distance <= halfWidth) {
+                        // 圆形焊盘使用width作为直径
+                        this.isMouseHovering = true
+                    }
+                    break
+
+                case "oval":
+                    // 椭圆形使用椭圆方程检测
+                    const normalizedX = rotatedX / halfWidth
+                    const normalizedY = rotatedY / halfHeight
+                    if (
+                        normalizedX * normalizedX + normalizedY * normalizedY <=
+                        1
+                    ) {
+                        this.isMouseHovering = true
+                    }
+                    break
+            }
+
+            // 如果状态改变，重绘画布并显示信息
+            if (preIsMouseHovering !== this.isMouseHovering) {
+                kCanvas.draw()
+                if (this.isMouseHovering) {
+                    console.log(
+                        `Pad ${this.number} - Type: ${this.type}, Shape: ${this.shape}`
+                    )
+                }
+            }
+        })
+    }
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save()
-        console.log("画pad")
         // 移动到焊盘中心位置
         ctx.translate(this.at.x, this.at.y)
         if (this.at.angle) {
@@ -223,7 +314,6 @@ export class FootPointPad {
 
         // 根据类型设置样式
         this.setStyle(ctx)
-        console.log("this", this)
         // 根据形状绘制
         switch (this.shape) {
             case "rect":
@@ -242,7 +332,14 @@ export class FootPointPad {
 
         // 绘制焊盘编号
         ctx.fillStyle = "#FFFFFF" // 设置文字颜色为白色
-        const fontSize = Math.min(this.size.width, this.size.height) * 0.5 // 动态设置字体大小
+        // 在 draw 方法中计算字体大小
+        const fontSize = Math.min(
+            Math.max(
+                MIN_FONT_SIZE,
+                Math.min(this.size.width, this.size.height) * 0.5
+            ),
+            MAX_FONT_SIZE
+        )
         ctx.font = `${fontSize}px Arial` // 设置文字大小和字体
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
@@ -256,13 +353,17 @@ export class FootPointPad {
     }
 
     private setStyle(ctx: CanvasRenderingContext2D) {
-        ctx.fillStyle = "#C2362D" // 顶层铜箔色
-        // 根据层设置颜色
-        // if (this.layers.includes("F.Cu")) {
-        //     ctx.fillStyle = "#C2362D" // 顶层铜箔色
-        // } else if (this.layers.includes("B.Cu")) {
-        //     ctx.fillStyle = "#1D5D87" // 底层铜箔色
-        // }
+        if (this.isMouseHovering) {
+            ctx.fillStyle =
+                theme.board.cursor?.toString() || "rgb(255, 255, 255)"
+        } else {
+            // 根据层设置颜色
+            if (this.layers.includes("F.Cu")) {
+                ctx.fillStyle = theme.board.copper.f.to_css()
+            } else if (this.layers.includes("B.Cu")) {
+                ctx.fillStyle = theme.board.copper.b.to_css()
+            }
+        }
     }
 
     private drawRect(ctx: CanvasRenderingContext2D) {
@@ -278,8 +379,46 @@ export class FootPointPad {
 
     private drawOval(ctx: CanvasRenderingContext2D) {
         const { width, height } = this.size
+        const halfWidth = width / 2
+        const halfHeight = height / 2
+
+        // 计算最小边作为圆弧半径
+        const radius = Math.min(halfWidth, halfHeight)
+
         ctx.beginPath()
-        ctx.ellipse(0, 0, width / 2, height / 2, 0, 0, Math.PI * 2)
+
+        if (width === height) {
+            // 如果宽高相等，直接画圆
+            ctx.arc(0, 0, radius, 0, Math.PI * 2)
+        } else if (width > height) {
+            // 宽大于高，水平方向的椭圆
+            const leftCenter = -halfWidth + radius
+            const rightCenter = halfWidth - radius
+
+            // 从右上开始，顺时针方向
+            ctx.moveTo(rightCenter, -radius)
+
+            // 画右半圆 (从上到下)
+            ctx.arc(rightCenter, 0, radius, -Math.PI / 2, Math.PI / 2)
+
+            // 画左半圆 (从下到上)
+            ctx.arc(leftCenter, 0, radius, Math.PI / 2, -Math.PI / 2)
+        } else {
+            // 高大于宽，垂直方向的椭圆
+            const topCenter = -halfHeight + radius
+            const bottomCenter = halfHeight - radius
+
+            // 从右下开始，顺时针方向
+            ctx.moveTo(radius, bottomCenter)
+
+            // 画下半圆 (从右到左)
+            ctx.arc(0, bottomCenter, radius, 0, Math.PI)
+
+            // 画上半圆 (从左到右)
+            ctx.arc(0, topCenter, radius, Math.PI, 0)
+        }
+
+        ctx.closePath()
         ctx.fill()
     }
 
@@ -352,7 +491,7 @@ export class KCFootPoint extends KicadCanvasElement {
             symbols = [],
             rectangles = [],
             circles = [],
-
+            polylines = [],
             arcs = [],
         } = symbol
         this.number = number
@@ -361,7 +500,9 @@ export class KCFootPoint extends KicadCanvasElement {
 
         this.shapes.push(
             // ...rectangles.map((r: any) => new Rectangle(r)),
-            ...lines.map((l: any) => new Line(l))
+            ...lines.map((l: any) => new Line(l)),
+            ...polylines.map((p: any) => new Polyline(p)),
+            ...circles.map((c: any) => new FpCircle(c))
         )
     }
 }
