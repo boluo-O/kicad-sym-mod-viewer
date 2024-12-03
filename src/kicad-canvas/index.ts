@@ -53,6 +53,10 @@ export class KicadCanvas {
         this.bindCanvasControl()
 
         this.draw()
+
+        kicadCanvasStore.subscribe(() => {
+            this.draw()
+        })
     }
 
     bindCanvasControl() {
@@ -63,7 +67,6 @@ export class KicadCanvas {
                 this.isDragging = true
                 this.startX = event.clientX - this.offsetX
                 this.startY = event.clientY - this.offsetY
-                console.log("点击")
             }
         })
 
@@ -74,7 +77,6 @@ export class KicadCanvas {
                 this.offsetX = event.clientX - this.startX
                 this.offsetY = event.clientY - this.startY
                 this.draw() // 重新绘制
-                console.log("拖拽")
             }
             const rect = this.canvas.getBoundingClientRect()
 

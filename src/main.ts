@@ -75,7 +75,7 @@ const testFootprint = () => {
 
 const __main = () => {
     testSymbol()
-    // testFootprint()
+    testFootprint()
 }
 
 __main()

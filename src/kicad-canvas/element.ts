@@ -69,21 +69,28 @@ export class SymbolPin {
                 this.isMouseHovering = true
             }
             if (preIsMouseHovering !== this.isMouseHovering) {
-                kCanvas.draw()
                 if (this.isMouseHovering) {
-                    console.log(this)
-
                     console.log(
                         `引脚信息: ${this.name.text} (${this.number.text})`
                     )
+                    kicadCanvasStore.setState({
+                        hightLightPinOrPadNumber: this.number.text,
+                    })
+                } else {
+                    kicadCanvasStore.setState({ hightLightPinOrPadNumber: "" })
                 }
+                kCanvas.draw()
             }
         })
     }
 
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save()
-        if (this.isMouseHovering) {
+        const otherHovering =
+            kicadCanvasStore.getState().hightLightPinOrPadNumber ===
+            this.number.text
+
+        if (this.isMouseHovering || otherHovering) {
             ctx.strokeStyle = "red"
             ctx.fillStyle = "red"
             // 显示引脚信息
@@ -292,15 +299,18 @@ export class FootPointPad {
                     }
                     break
             }
-
-            // 如果状态改变，重绘画布并显示信息
             if (preIsMouseHovering !== this.isMouseHovering) {
-                kCanvas.draw()
                 if (this.isMouseHovering) {
                     console.log(
                         `Pad ${this.number} - Type: ${this.type}, Shape: ${this.shape}`
                     )
+                    kicadCanvasStore.setState({
+                        hightLightPinOrPadNumber: this.number,
+                    })
+                } else {
+                    kicadCanvasStore.setState({ hightLightPinOrPadNumber: "" })
                 }
+                kCanvas.draw()
             }
         })
     }
@@ -353,7 +363,9 @@ export class FootPointPad {
     }
 
     private setStyle(ctx: CanvasRenderingContext2D) {
-        if (this.isMouseHovering) {
+        const otherHovering =
+            kicadCanvasStore.getState().hightLightPinOrPadNumber === this.number
+        if (this.isMouseHovering || otherHovering) {
             ctx.fillStyle =
                 theme.board.cursor?.toString() || "rgb(255, 255, 255)"
         } else {

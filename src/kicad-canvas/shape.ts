@@ -123,7 +123,6 @@ export class FpCircle extends Shape {
         this.width = circle.width || 0
         this.fill = circle.fill || "none"
         this.stroke = circle.stroke || { type: "default", width: 0 }
-        console.log("this fpcircle", this)
     }
 
     // 计算半径
@@ -171,7 +170,6 @@ export class Polyline extends Shape {
         this.fill = polyline.fill
         this.stroke = polyline.stroke
         this.layer = polyline.layer
-        console.log("polyline", polyline)
     }
 
     draw(ctx: CanvasRenderingContext2D) {
