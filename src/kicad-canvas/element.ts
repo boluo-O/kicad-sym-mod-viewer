@@ -20,19 +20,36 @@ interface Size {
     height: number
 }
 export class SymbolPin {
-    shape: "line"
+    type:
+        | "input"
+        | "output"
+        | "bidirectional"
+        | "tri_state"
+        | "passive"
+        | "power_in"
+        | "power_out"
+    shape:
+        | "line"
+        | "inverted"
+        | "clock"
+        | "inverted_clock"
+        | "input_low"
+        | "output_low"
+        | "edge_clock_high"
+        | "non_logic"
     name: { text: string; effects: { font: { size: Size } } }
     number: { text: string; effects: { font: { size: Size } } }
     at: { x: number; y: number; rotate: number }
     length: number
     isMouseHovering: boolean = false
-    constructor({ at, length, name, shape, number }) {
+    constructor(pin: any) {
+        const { at, length, name, shape, number, type } = pin
         this.at = at
         this.shape = shape
         this.length = length
         this.name = name
         this.number = number
-        this.shape = shape
+        this.type = type
     }
 
     public bindEvent(ctx: CanvasRenderingContext2D, kCanvas: KicadCanvas) {
@@ -86,32 +103,129 @@ export class SymbolPin {
 
     draw(ctx: CanvasRenderingContext2D) {
         ctx.save()
+        console.log("draw pin", this)
         const otherHovering =
             kicadCanvasStore.getState().hightLightPinOrPadNumber ===
             this.number.text
 
         if (this.isMouseHovering || otherHovering) {
-            ctx.strokeStyle = "red"
-            ctx.fillStyle = "red"
+            ctx.strokeStyle = "#00ffff"
+            ctx.fillStyle = "#00ffff"
             // 显示引脚信息
         } else {
             ctx.strokeStyle = theme.schematic.pin.to_css()
             ctx.fillStyle = theme.schematic.pin.to_css()
         }
-        // pin 点
-        ctx.beginPath()
-        ctx.arc(this.at.x, this.at.y, 0.254, 0, Math.PI * 2)
-        ctx.fill()
+        if (this.shape !== "clock") {
+            // pin 点
+            ctx.beginPath()
+            ctx.arc(this.at.x, this.at.y, 0.254, 0, Math.PI * 2)
+            ctx.fill()
+        }
         // pin 线
         ctx.translate(this.at.x, this.at.y)
         ctx.rotate(((this.at.rotate + 90) * Math.PI) / 180) // 旋转角度
-        ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineWidth = 0.254 // 设置线宽
-        ctx.lineTo(0, -this.length) // 绘制引脚
-        ctx.stroke()
-        ctx.restore() // 恢复之前的状态
+        ctx.lineWidth = 0.1524
+        if (this.shape === "inverted") {
+            // 绘制反相圆圈
+            ctx.beginPath()
+            const circleRadius = 0.6 // 圆圈半径
+            ctx.arc(
+                0,
+                -this.length + circleRadius,
+                circleRadius,
+                0,
+                Math.PI * 2
+            )
+            ctx.stroke()
 
+            // pin 线 (需要缩短一点以适应圆圈)
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, -(this.length - circleRadius * 2)) // 线条长度减去圆圈半径
+        } else if (this.shape === "clock") {
+            // 绘制时钟符号（两条直角线段）
+            const clockSize = 0.6 // 时钟符号大小
+            const shift = 0.3 // 向右的偏移量
+            ctx.beginPath()
+
+            // 时钟箭头（两条90度的线段）
+            ctx.moveTo(-clockSize, -(this.length - clockSize + shift))
+            ctx.lineTo(0, -this.length - shift) // 改为指向端点，不再偏移0.3
+            ctx.lineTo(clockSize, -(this.length - clockSize + shift))
+            ctx.stroke()
+
+            // pin 线
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, -this.length) // 线条长度减去时钟符号高度
+            ctx.stroke()
+        } else if (this.shape === "inverted_clock") {
+            // 绘制反相圆圈
+            ctx.beginPath()
+            const circleRadius = 0.6 // 圆圈半径
+            ctx.arc(
+                0,
+                -this.length + circleRadius,
+                circleRadius,
+                0,
+                Math.PI * 2
+            )
+            ctx.stroke()
+
+            // 绘制时钟符号（两条直角线段）
+            const clockSize = 0.6 // 时钟符号大小
+            const shift = 0.6 // 向右的偏移量
+            ctx.beginPath()
+
+            // 时钟箭头（两条90度的线段）
+            ctx.moveTo(-clockSize, -(this.length - clockSize + shift))
+            ctx.lineTo(0, -this.length - shift) // 改为指向端点，不再偏移0.3
+            ctx.lineTo(clockSize, -(this.length - clockSize + shift))
+            ctx.stroke()
+
+            // pin 线 (需要缩短一点以适应圆圈)
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, -(this.length - circleRadius * 2)) // 线条长度减去圆圈半径
+        } else if (this.shape === "edge_clock_high") {
+            const clockSize = 0.6 // 时钟符号大小
+            const edgeHeight = clockSize * 2 // 竖线高度
+
+            ctx.beginPath()
+
+            // 主引脚线
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, -this.length)
+
+            // 绘制上升沿时钟符号
+            ctx.moveTo(-edgeHeight, -(this.length - edgeHeight)) // 左下角
+            ctx.lineTo(0, -(this.length - edgeHeight)) // 水平线到中间
+            ctx.lineTo(0, -this.length) // 垂直线到顶部
+            ctx.lineTo(-edgeHeight, -(this.length - edgeHeight)) // 斜线到右下角
+
+            // 绘制时钟符号（两条直角线段）
+            const shift = 0.4 // 向右的偏移量
+            // 时钟箭头（两条90度的线段）
+            ctx.moveTo(-clockSize, -(this.length - clockSize + shift))
+            ctx.lineTo(0, -this.length - shift) // 改为指向端点，不再偏移0.3
+            ctx.lineTo(clockSize, -(this.length - clockSize + shift))
+            ctx.stroke()
+
+            ctx.stroke()
+        } else {
+            // pin 点
+            ctx.beginPath()
+            ctx.arc(this.at.x, this.at.y, 0.254, 0, Math.PI * 2)
+            ctx.fill()
+            // 原来的直线绘制代码
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, -this.length)
+        }
+
+        ctx.stroke()
+        ctx.restore()
         // pin 文字和数字
         ctx.save()
         ctx.translate(this.at.x, this.at.y)
@@ -366,8 +480,7 @@ export class FootPointPad {
         const otherHovering =
             kicadCanvasStore.getState().hightLightPinOrPadNumber === this.number
         if (this.isMouseHovering || otherHovering) {
-            ctx.fillStyle =
-                theme.board.cursor?.toString() || "rgb(255, 255, 255)"
+            ctx.fillStyle = "#00ffff"
         } else {
             // 根据层设置颜色
             if (this.layers.includes("F.Cu")) {

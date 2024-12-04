@@ -1,3 +1,5 @@
+import { Color } from "./kicad-canvas/themes/color"
+
 const parseRowMap: Record<
     string,
     (o: any, propsList: any[], injectPropsbyParseTokenList: any) => void
@@ -25,8 +27,11 @@ const parseRowMap: Record<
         }
     },
     pin: (o, propsList, injectPropsbyParseTokenList) => {
-        const pin = {}
-        injectPropsbyParseTokenList(pin, propsList.slice(1))
+        const pin = {
+            type: propsList[1],
+            shape: propsList[2],
+        }
+        injectPropsbyParseTokenList(pin, propsList.slice(3))
         if (o.pins) {
             o.pins.push(pin)
         } else {
@@ -206,6 +211,9 @@ const parseRowMap: Record<
     },
     mid: (o, propsList, injectPropsbyParseTokenList) => {
         o.mid = { x: propsList[1], y: propsList[2] }
+    },
+    color: (o, propsList, injectPropsbyParseTokenList) => {
+        o.color = `rgba(${propsList[1]}, ${propsList[2]}, ${propsList[3]}, ${propsList[4]})`
     },
 }
 

@@ -26,33 +26,40 @@ const drawKicadModule = (kicadSymbolFileText: string) => {
     kc.firstDraw()
 }
 const testSymbol = () => {
-    fetch("./MMBFJ112.kicad_sym")
+    // fetch("./MMBFJ112.kicad_sym")
+    //     .then((res) => res.text())
+    //     .then((data) => {
+    //         console.time("测试耗时1")
+    //         drawKicadSymbol(data)
+    //         console.timeEnd("测试耗时1")
+    //     })
+    // fetch("./MOD-nRF8001.kicad_sym")
+    //     .then((res) => res.text())
+    //     .then((data) => {
+    //         console.time("测试耗时2")
+    //         drawKicadSymbol(data)
+    //         console.timeEnd("测试耗时2")
+    //     })
+    // fetch("./ONSC-MC1496_B-14.kicad_sym")
+    //     .then((res) => res.text())
+    //     .then((data) => {
+    //         console.time("测试耗时3")
+    //         drawKicadSymbol(data)
+    //         console.timeEnd("测试耗时3")
+    //     })
+    // fetch("./test2.kicad_sym")
+    //     .then((res) => res.text())
+    //     .then((data) => {
+    //         console.time("测试耗时4")
+    //         drawKicadSymbol(data)
+    //         console.timeEnd("测试耗时4")
+    //     })
+    fetch("./full-2.kicad_sym")
         .then((res) => res.text())
         .then((data) => {
-            console.time("测试耗时1")
+            console.time("测试耗时5")
             drawKicadSymbol(data)
-            console.timeEnd("测试耗时1")
-        })
-    fetch("./MOD-nRF8001.kicad_sym")
-        .then((res) => res.text())
-        .then((data) => {
-            console.time("测试耗时2")
-            drawKicadSymbol(data)
-            console.timeEnd("测试耗时2")
-        })
-    fetch("./ONSC-MC1496_B-14.kicad_sym")
-        .then((res) => res.text())
-        .then((data) => {
-            console.time("测试耗时3")
-            drawKicadSymbol(data)
-            console.timeEnd("测试耗时3")
-        })
-    fetch("./test2.kicad_sym")
-        .then((res) => res.text())
-        .then((data) => {
-            console.time("测试耗时4")
-            drawKicadSymbol(data)
-            console.timeEnd("测试耗时4")
+            console.timeEnd("测试耗时5")
         })
 }
 
@@ -75,7 +82,7 @@ const testFootprint = () => {
 
 const __main = () => {
     testSymbol()
-    testFootprint()
+    // testFootprint()
 }
 
 __main()

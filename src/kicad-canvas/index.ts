@@ -60,9 +60,15 @@ export class KicadCanvas {
     }
 
     bindCanvasControl() {
+        this.canvas.addEventListener("contextmenu", function (e) {
+            e.preventDefault() // 阻止默认的右键菜单
+            return false
+        })
         // 处理鼠标按下事件以开始平移
         this.canvas.addEventListener("mousedown", (event) => {
-            if (event.button === 0) {
+            event.preventDefault()
+            console.log("event.button", event.button)
+            if (event.button === 0 || event.button === 2) {
                 // 左键
                 this.isDragging = true
                 this.startX = event.clientX - this.offsetX

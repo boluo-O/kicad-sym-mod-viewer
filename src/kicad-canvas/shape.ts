@@ -6,7 +6,7 @@ export interface Point {
 }
 
 export interface Fill {
-    type: "none" | "outline" | "background" | "solid"
+    type: "default" | "none" | "outline" | "background" | "solid"
     color?: string // 例如: "#FFFFFF"
     opacity?: number // 0-1 之间的值
 }
@@ -99,11 +99,42 @@ export class Circle extends Shape {
         ctx.arc(this.center.x, this.center.y, this.radius, 0, Math.PI * 2) // 使用 radius 变量
         ctx.lineWidth = this.stroke.width // 使用 strokeWidth 变量
         // ctx.strokeStyle = stroke.type // 设置边框颜色
-        ctx.strokeStyle = theme.schematic.component_outline.to_css()
-        ctx.stroke() // 绘制边框
-        // ctx.fillStyle = fill.type // 设置填充颜色
-        ctx.fillStyle = "transparent" // 设置填充颜色
-        ctx.fill() // 填充圆
+        ctx.strokeStyle =
+            this.stroke.color || theme.schematic.component_outline.to_css()
+        ctx.fillStyle =
+            this.fill.color || theme.schematic.component_body.to_css()
+
+        // 根据填充类型处理
+        switch (this.fill.type) {
+            case "none":
+                ctx.stroke()
+                break
+
+            case "background":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                ctx.stroke()
+                break
+
+            case "outline":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.stroke.color ||
+                    theme.schematic.component_outline.to_css()
+                ctx.fill()
+                break
+            case "default":
+            case "solid":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                break
+        }
     }
 }
 
@@ -113,7 +144,7 @@ export class FpCircle extends Shape {
     layer: string
     width: number
     fill: "none" | "solid"
-    stroke: { type: string; width: number }
+    stroke: Stroke
 
     constructor(circle: any) {
         super()
@@ -139,8 +170,9 @@ export class FpCircle extends Shape {
         // 设置样式
         ctx.lineWidth = this.stroke.width || this.width || 1.75
 
-        ctx.strokeStyle = getLayerColor(this.layer)
-        ctx.fillStyle = getLayerColor(this.layer)
+        ctx.strokeStyle =
+            this.stroke.color || getLayerColor(this.layer) || "black"
+        ctx.fillStyle = getLayerColor(this.layer) || "transparent"
 
         // 绘制圆
         ctx.beginPath()
@@ -175,7 +207,6 @@ export class Polyline extends Shape {
     draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath()
         ctx.moveTo(this.pts.xyList[0].x, this.pts.xyList[0].y) // 移动到第一个点
-
         for (let i = 1; i < this.pts.xyList.length; i++) {
             ctx.lineTo(this.pts.xyList[i].x, this.pts.xyList[i].y) // 连接到下一个点
         }
@@ -184,14 +215,40 @@ export class Polyline extends Shape {
         if (this.layer) {
             ctx.strokeStyle = getLayerColor(this.layer)
         } else {
-            ctx.strokeStyle = theme.schematic.component_outline.to_css()
+            ctx.strokeStyle =
+                this.stroke.color || theme.schematic.component_outline.to_css()
         }
-        ctx.stroke() // 绘制线条
 
-        if (this.fill.type === "outline") {
-            ctx.closePath()
-            ctx.fillStyle = "none" // 填充类型为无
-            ctx.fill() // 填充
+        // 根据填充类型处理
+        switch (this.fill.type) {
+            case "none":
+                ctx.stroke()
+                break
+
+            case "background":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                ctx.stroke()
+                break
+
+            case "outline":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.stroke.color ||
+                    theme.schematic.component_outline.to_css()
+                ctx.fill()
+                break
+            case "default":
+            case "solid":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                break
         }
     }
 }
@@ -286,8 +343,39 @@ export class Arc extends Shape {
         ctx.beginPath()
         ctx.arc(center.x, center.y, radius, startAngle, endAngle)
         ctx.lineWidth = this.stroke.width
-        ctx.strokeStyle = theme.schematic.component_outline.to_css()
-        ctx.stroke()
+        ctx.strokeStyle =
+            this.stroke.color || theme.schematic.component_outline.to_css()
+        // 根据填充类型处理
+        switch (this.fill.type) {
+            case "none":
+                ctx.stroke()
+                break
+
+            case "background":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                ctx.stroke()
+                break
+
+            case "outline":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.stroke.color ||
+                    theme.schematic.component_outline.to_css()
+                ctx.fill()
+                break
+            case "default":
+            case "solid":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                break
+        }
     }
 }
 
@@ -348,9 +436,41 @@ export class Rectangle extends Shape {
             this.end.y - this.start.y
         )
         ctx.lineWidth = this.stroke.width
-        ctx.strokeStyle = theme.schematic.component_outline.to_css()
-        ctx.fillStyle = theme.schematic.component_body.to_css()
-        ctx.stroke()
-        ctx.fill() // 填充内部
+        ctx.strokeStyle =
+            this.stroke.color || theme.schematic.component_outline.to_css()
+        ctx.fillStyle =
+            this.fill.color || theme.schematic.component_body.to_css()
+
+        // 根据填充类型处理
+        switch (this.fill.type) {
+            case "none":
+                ctx.stroke()
+                break
+
+            case "background":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                ctx.stroke()
+                break
+
+            case "outline":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.stroke.color ||
+                    theme.schematic.component_outline.to_css()
+                ctx.fill()
+                break
+            case "default":
+            case "solid":
+                ctx.closePath()
+                ctx.fillStyle =
+                    this.fill.color || theme.schematic.component_body.to_css()
+
+                ctx.fill()
+                break
+        }
     }
 }

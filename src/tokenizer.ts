@@ -111,12 +111,12 @@ export function tokenize(input: string): Token[] {
             } else if (isWhitespace(c)) {
                 continue
             } else {
-                throw new Error(
-                    `Unexpected character at index ${i}: ${c}\nContext: ${errorContext(
-                        input,
-                        i
-                    )}`
-                )
+                // throw new Error(
+                //     `Unexpected character at index ${i}: ${c}\nContext: ${errorContext(
+                //         input,
+                //         i
+                //     )}`
+                // )
             }
         } else if (state == State.atom) {
             if (isAtom(c)) {
