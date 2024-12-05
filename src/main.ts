@@ -1,8 +1,9 @@
 import { listify, tokenize } from "./tokenizer.ts"
 import { KicadCanvas } from "./kicad-canvas/index.ts"
-import { KCFootPoint, KCSymbol } from "./kicad-canvas/element.ts"
 import { createDraft } from "immer"
 import { injectPropsbyParseTokenList } from "./parser.ts"
+import { KCFootPoint } from "./kicad-canvas/element.ts/footpoint.ts"
+import { KCSymbol } from "./kicad-canvas/element.ts/symbol.ts"
 
 const drawKicadSymbol = (kicadSymbolFileText: string) => {
     const tokenList = listify(kicadSymbolFileText)[0] as any[]
@@ -26,34 +27,34 @@ const drawKicadModule = (kicadSymbolFileText: string) => {
     kc.firstDraw()
 }
 const testSymbol = () => {
-    // fetch("./MMBFJ112.kicad_sym")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         console.time("测试耗时1")
-    //         drawKicadSymbol(data)
-    //         console.timeEnd("测试耗时1")
-    //     })
-    // fetch("./MOD-nRF8001.kicad_sym")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         console.time("测试耗时2")
-    //         drawKicadSymbol(data)
-    //         console.timeEnd("测试耗时2")
-    //     })
-    // fetch("./ONSC-MC1496_B-14.kicad_sym")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         console.time("测试耗时3")
-    //         drawKicadSymbol(data)
-    //         console.timeEnd("测试耗时3")
-    //     })
-    // fetch("./test2.kicad_sym")
-    //     .then((res) => res.text())
-    //     .then((data) => {
-    //         console.time("测试耗时4")
-    //         drawKicadSymbol(data)
-    //         console.timeEnd("测试耗时4")
-    //     })
+    fetch("./MMBFJ112.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时1")
+            drawKicadSymbol(data)
+            console.timeEnd("测试耗时1")
+        })
+    fetch("./MOD-nRF8001.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时2")
+            drawKicadSymbol(data)
+            console.timeEnd("测试耗时2")
+        })
+    fetch("./ONSC-MC1496_B-14.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时3")
+            drawKicadSymbol(data)
+            console.timeEnd("测试耗时3")
+        })
+    fetch("./test2.kicad_sym")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时4")
+            drawKicadSymbol(data)
+            console.timeEnd("测试耗时4")
+        })
     fetch("./full-2.kicad_sym")
         .then((res) => res.text())
         .then((data) => {
@@ -64,6 +65,13 @@ const testSymbol = () => {
 }
 
 const testFootprint = () => {
+    fetch("./full-1.kicad_mod")
+        .then((res) => res.text())
+        .then((data) => {
+            console.time("测试耗时f 1")
+            drawKicadModule(data)
+            console.timeEnd("测试耗时f 1")
+        })
     fetch("./SOT-23.kicad_mod")
         .then((res) => res.text())
         .then((data) => {
@@ -82,7 +90,7 @@ const testFootprint = () => {
 
 const __main = () => {
     testSymbol()
-    // testFootprint()
+    testFootprint()
 }
 
 __main()

@@ -1,18 +1,16 @@
 import { createStore } from "zustand/vanilla"
 import { KicadShape, KicadShapeListMap } from "./shape"
-import { FootPointPad, SymbolPin } from "./element"
-// const useStore = create((set) => ({
-//     count: 0,
-//     increment: () => set((state) => ({ count: state.count + 1 })),
-// }))
+import { SymbolPin } from "./element.ts/symbol"
+import { FootPointPad } from "./element.ts/footpoint"
+
 const defaultCanvas = document.createElement("canvas") as HTMLCanvasElement
 const defaultCanvasContext = defaultCanvas.getContext(
     "2d"
 ) as CanvasRenderingContext2D
 export const kicadCanvasStore = createStore<{
-    hightLightPinOrPadNumber: string
+    hightLightPinOrPadNumber: string | undefined
 }>(() => ({
-    hightLightPinOrPadNumber: "",
+    hightLightPinOrPadNumber: undefined,
 }))
 
 export class KicadCanvas {

@@ -52,6 +52,19 @@ const parseRowMap: Record<
             o.pads = [pad]
         }
     },
+    drill: (o, propsList, injectPropsbyParseTokenList) => {
+        const isOval = propsList[1] === "oval"
+        o.drill = {
+            oval: isOval,
+            diameter: isOval ? undefined : propsList[1],
+            size: isOval
+                ? {
+                      width: propsList[2],
+                      height: propsList[3],
+                  }
+                : undefined,
+        }
+    },
     fp_line: (o, propsList, injectPropsbyParseTokenList) => {
         const line = {}
         injectPropsbyParseTokenList(line, propsList.slice(1))
@@ -79,6 +92,73 @@ const parseRowMap: Record<
             o.circles = [circle]
         }
     },
+    fp_arc: (o, propsList, injectPropsbyParseTokenList) => {
+        const arc = {}
+        injectPropsbyParseTokenList(arc, propsList.slice(1))
+        if (o.arcs) {
+            o.arcs.push(arc)
+        } else {
+            o.arcs = [arc]
+        }
+    },
+    fp_rect: (o, propsList, injectPropsbyParseTokenList) => {
+        const rectangle = {}
+        injectPropsbyParseTokenList(rectangle, propsList.slice(1))
+        if (o.rectangles) {
+            o.rectangles.push(rectangle)
+        } else {
+            o.rectangles = [rectangle]
+        }
+    },
+    primitives: (o, propsList, injectPropsbyParseTokenList) => {
+        console.log("primitives", propsList)
+        o.primitives = {
+            circles: [],
+            rectangles: [],
+            lines: [],
+            polylines: [],
+            arcs: [],
+        }
+        injectPropsbyParseTokenList(o.primitives, propsList.slice(1))
+        console.log("o.primitives", o)
+    },
+    gr_circle: (o, propsList, injectPropsbyParseTokenList) => {
+        const circle = {}
+        injectPropsbyParseTokenList(circle, propsList.slice(1))
+        if (o.circles) {
+            o.circles.push(circle)
+        } else {
+            o.circles = [circle]
+        }
+    },
+    gr_rect: (o, propsList, injectPropsbyParseTokenList) => {
+        const rectangle = {}
+        injectPropsbyParseTokenList(rectangle, propsList.slice(1))
+        if (o.rectangles) {
+            o.rectangles.push(rectangle)
+        } else {
+            o.rectangles = [rectangle]
+        }
+    },
+    gr_line: (o, propsList, injectPropsbyParseTokenList) => {
+        const line = {}
+        injectPropsbyParseTokenList(line, propsList.slice(1))
+        if (o.lines) {
+            o.lines.push(line)
+        } else {
+            o.lines = [line]
+        }
+    },
+    gr_poly: (o, propsList, injectPropsbyParseTokenList) => {
+        const polyline = {}
+        injectPropsbyParseTokenList(polyline, propsList.slice(1))
+        if (o.polylines) {
+            o.polylines.push(polyline)
+        } else {
+            o.polylines = [polyline]
+        }
+    },
+
     // 图形形状
     polyline: (o, propsList, injectPropsbyParseTokenList) => {
         const polyline = {}
@@ -162,7 +242,7 @@ const parseRowMap: Record<
     },
     fill: (o, propsList, injectPropsbyParseTokenList) => {
         if (typeof propsList[1] === "string") {
-            o.fill = propsList[1]
+            o.fill = { type: propsList[1] }
         } else {
             o.fill = {}
             injectPropsbyParseTokenList(o.fill, propsList.slice(1))
@@ -214,6 +294,9 @@ const parseRowMap: Record<
     },
     color: (o, propsList, injectPropsbyParseTokenList) => {
         o.color = `rgba(${propsList[1]}, ${propsList[2]}, ${propsList[3]}, ${propsList[4]})`
+    },
+    offset: (o, propsList, injectPropsbyParseTokenList) => {
+        o.offset = { x: propsList[1], y: propsList[2] }
     },
 }
 
